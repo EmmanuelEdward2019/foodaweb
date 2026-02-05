@@ -1,0 +1,76 @@
+# Supabase CLI configuration file
+# This file is used by the Supabase CLI to configure your local development environment
+
+[project]
+# The project ID for your Supabase project
+# You can find this in your Supabase dashboard
+id = "fooda-app"
+
+[functions]
+# Configuration for Edge Functions
+
+[functions.create-order]
+# Configuration for the create-order function
+verify_jwt = true
+
+[functions.update-order-status]
+# Configuration for the update-order-status function
+verify_jwt = true
+
+[functions.send-notifications]
+# Configuration for the send-notifications function
+verify_jwt = true
+
+[functions.process-payment]
+# Configuration for the process-payment function
+verify_jwt = true
+
+[auth]
+# Authentication configuration
+
+[auth.email]
+# Email authentication settings
+enable_signup = true
+double_confirm_changes = true
+enable_confirmations = true
+
+[database]
+# Database configuration
+port = 5432
+
+[studio]
+# Supabase Studio configuration
+port = 54323
+
+[db]
+# Local database configuration
+port = 54322
+shadow_port = 54320
+
+[inbucket]
+# Email testing configuration
+port = 54324
+smtp_port = 54325
+pop3_port = 54326
+
+[storage]
+# Storage configuration
+file_size_limit = "50MiB"
+
+[auth.external.google]
+# Google OAuth configuration
+enabled = false
+client_id = ""
+secret = ""
+
+[auth.external.facebook]
+# Facebook OAuth configuration
+enabled = false
+client_id = ""
+secret = ""
+
+[auth.external.github]
+# GitHub OAuth configuration
+enabled = false
+client_id = ""
+secret = ""

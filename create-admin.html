@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Create Admin User</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 40px;
+            background: #f5f5f5;
+        }
+
+        .container {
+            max-width: 500px;
+            margin: auto;
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            color: #ff6b35;
+        }
+
+        .result {
+            padding: 15px;
+            margin-top: 20px;
+            border-radius: 8px;
+        }
+
+        .success {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .info {
+            background: #cce5ff;
+            color: #004085;
+        }
+
+        button {
+            padding: 12px 24px;
+            background: #ff6b35;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 5px;
+        }
+
+        button:hover {
+            background: #e55a2b;
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #fff;
+            border-top-color: transparent;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 10px;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>🍔 Fooda - Create Admin User</h1>
+        <p><strong>Email:</strong> techfieldstechnologies@gmail.com</p>
+        <p><strong>Password:</strong> MyAppBiz@2016</p>
+        <p><strong>Role:</strong> Admin</p>
+
+        <div id="result"></div>
+
+        <button id="createBtn" onclick="createUser()">Create Admin User</button>
+        <button onclick="insertToUsersTable()">Add to Users Table</button>
+    </div>
+
+    <script>
+        const SUPABASE_URL = 'https://dukvrgupgtymxxbqpctq.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR1a3ZyZ3VwZ3R5bXh4YnFwY3RxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ4NjY1MTQsImV4cCI6MjA4MDQ0MjUxNH0._WUj92bMmPakzdA7dltor8ADGUhOlHExSKB4DRvugcg';
+
+        const resultDiv = document.getElementById('result');
+        const createBtn = document.getElementById('createBtn');
+
+        async function createUser() {
+            createBtn.disabled = true;
+            createBtn.innerHTML = '<span class="spinner"></span>Creating...';
+            resultDiv.innerHTML = '<div class="result info">Please wait...</div>';
+
+            try {
+                const response = await fetch(`${SUPABASE_URL}/auth/v1/signup`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'apikey': SUPABASE_ANON_KEY
+                    },
+                    body: JSON.stringify({
+                        email: 'techfieldstechnologies@gmail.com',
+                        password: 'MyAppBiz@2016',
+                        data: {
+                            full_name: 'Admin User',
+                            role: 'admin'
+                        }
+                    })
+                });
+
+                const data = await response.json();
+                console.log('Response:', data);
+
+                if (response.ok && data.user) {
+                    resultDiv.innerHTML = `
+                        <div class="result success">
+                            <strong>✅ User Created Successfully!</strong><br><br>
+                            <strong>User ID:</strong> ${data.user.id}<br>
+                            <strong>Email:</strong> ${data.user.email}<br>
+                            <strong>Created:</strong> ${new Date(data.user.created_at).toLocaleString()}<br><br>
+                            ${data.user.email_confirmed_at ? '✅ Email confirmed' : '⚠️ Check your email to confirm your account, OR if email confirmation is disabled, proceed to click "Add to Users Table"'}
+                        </div>
+                    `;
+                    // Store the user ID for later use
+                    window.createdUserId = data.user.id;
+                } else {
+                    resultDiv.innerHTML = `<div class="result error">❌ Error: ${data.error_description || data.msg || JSON.stringify(data)}</div>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="result error">❌ Network Error: ${error.message}</div>`;
+            } finally {
+                createBtn.disabled = false;
+                createBtn.textContent = 'Create Admin User';
+            }
+        }
+
+        async function insertToUsersTable() {
+            if (!window.createdUserId) {
+                resultDiv.innerHTML = '<div class="result error">Please create the auth user first!</div>';
+                return;
+            }
+
+            resultDiv.innerHTML = '<div class="result info">Adding user to users table...</div>';
+
+            try {
+                const response = await fetch(`${SUPABASE_URL}/rest/v1/users`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'apikey': SUPABASE_ANON_KEY,
+                        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+                        'Prefer': 'return=minimal'
+                    },
+                    body: JSON.stringify({
+                        id: window.createdUserId,
+                        email: 'techfieldstechnologies@gmail.com',
+                        full_name: 'Admin User',
+                        role: 'admin',
+                        is_active: true
+                    })
+                });
+
+                if (response.ok || response.status === 201) {
+                    resultDiv.innerHTML = `
+                        <div class="result success">
+                            <strong>✅ Admin User Fully Created!</strong><br><br>
+                            You can now login at <a href="http://localhost:3000/login" target="_blank">http://localhost:3000/login</a><br><br>
+                            <strong>Email:</strong> techfieldstechnologies@gmail.com<br>
+                            <strong>Password:</strong> MyAppBiz@2016
+                        </div>
+                    `;
+                } else {
+                    const errorData = await response.text();
+                    resultDiv.innerHTML = `<div class="result error">❌ Error adding to users table: ${errorData}</div>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="result error">❌ Error: ${error.message}</div>`;
+            }
+        }
+    </script>
+</body>
+
+</html>

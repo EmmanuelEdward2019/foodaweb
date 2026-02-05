@@ -1,0 +1,21 @@
+{
+    "name": "fooda-multivendor-app",
+    "version": "1.0.0",
+    "description": "Multivendor Food Ordering and Delivery Application",
+    "private": true,
+    "workspaces": [
+        "admin-dashboard",
+        "vendor-dashboard",
+        "user-app",
+        "delivery-app"
+    ],
+    "scripts": {
+        "dev:admin": "cd admin-dashboard && npm start",
+        "dev:vendor": "cd vendor-dashboard && npm start",
+        "dev:user": "cd user-app && npm start",
+        "dev:delivery": "cd delivery-app && npm start"
+    },
+    "dependencies": {
+        "@supabase/supabase-js": "^2.38.0"
+    }
+}

@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fooda - Login</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap"
+        rel="stylesheet">
+    <style>
+        .login-body {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%);
+            padding: 20px;
+        }
+
+        .login-container {
+            background: white;
+            border-radius: 24px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            width: 100%;
+            max-width: 440px;
+            padding: 40px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .login-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .login-header h1 {
+            color: #ff6b35;
+            font-size: 2rem;
+            margin-bottom: 8px;
+        }
+
+        .login-header h1 i {
+            margin-right: 10px;
+        }
+
+        .login-header p {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .tabs {
+            display: flex;
+            margin-bottom: 24px;
+            border-radius: 12px;
+            background: #f5f5f5;
+            padding: 4px;
+        }
+
+        .tab-btn {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            background: transparent;
+            font-size: 14px;
+            font-weight: 600;
+            color: #666;
+            cursor: pointer;
+            border-radius: 10px;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .tab-btn.active {
+            background: white;
+            color: #ff6b35;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: #333;
+            font-size: 14px;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 14px 16px;
+            border: 2px solid #eee;
+            border-radius: 12px;
+            font-size: 15px;
+            transition: all 0.3s ease;
+            font-family: inherit;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #ff6b35;
+            box-shadow: 0 0 0 4px rgba(255, 107, 53, 0.1);
+        }
+
+        .form-options {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+            font-size: 14px;
+        }
+
+        .checkbox-label {
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            color: #666;
+        }
+
+        .checkbox-label input {
+            margin-right: 8px;
+            accent-color: #ff6b35;
+        }
+
+        .forgot-password {
+            color: #ff6b35;
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        .forgot-password:hover {
+            text-decoration: underline;
+        }
+
+        .login-btn {
+            width: 100%;
+            padding: 16px;
+            background: linear-gradient(135deg, #ff6b35, #f7931e);
+            border: none;
+            border-radius: 12px;
+            color: white;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .login-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(255, 107, 53, 0.4);
+        }
+
+        .login-btn:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .divider {
+            display: flex;
+            align-items: center;
+            margin: 24px 0;
+            color: #aaa;
+            font-size: 13px;
+        }
+
+        .divider::before,
+        .divider::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: #eee;
+        }
+
+        .divider span {
+            padding: 0 16px;
+        }
+
+        .social-btn {
+            width: 100%;
+            padding: 14px;
+            border: 2px solid #eee;
+            border-radius: 12px;
+            background: white;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            transition: all 0.3s ease;
+            margin-bottom: 12px;
+            font-family: inherit;
+        }
+
+        .social-btn.google-btn:hover {
+            border-color: #4285f4;
+            background: #f8f9ff;
+        }
+
+        .social-btn.google-btn i {
+            color: #4285f4;
+        }
+
+        .social-btn.facebook-btn:hover {
+            border-color: #1877f2;
+            background: #f0f4ff;
+        }
+
+        .social-btn.facebook-btn i {
+            color: #1877f2;
+        }
+
+        .signup-link {
+            text-align: center;
+            margin-top: 24px;
+            font-size: 14px;
+            color: #666;
+        }
+
+        .signup-link a {
+            color: #ff6b35;
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .signup-link a:hover {
+            text-decoration: underline;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .back-home {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: #666;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 14px;
+        }
+
+        .back-home:hover {
+            color: #ff6b35;
+        }
+    </style>
+</head>
+
+<body class="login-body">
+    <div class="login-container">
+        <a href="index.html" class="back-home"><i class="fas fa-arrow-left"></i> Home</a>
+
+        <div class="login-header">
+            <h1><i class="fas fa-utensils"></i> Fooda</h1>
+            <p>Sign in to access your dashboard</p>
+        </div>
+
+        <!-- Login Forms -->
+        <div id="loginForms">
+            <div class="tabs">
+                <button class="tab-btn active" data-tab="vendor">
+                    <i class="fas fa-store"></i> Vendor
+                </button>
+                <button class="tab-btn" data-tab="admin">
+                    <i class="fas fa-user-shield"></i> Admin
+                </button>
+            </div>
+
+            <!-- Vendor Login Form -->
+            <div id="vendorLoginForm">
+                <form id="vendorLogin">
+                    <div class="form-group">
+                        <label for="vendorEmail">Email Address</label>
+                        <input type="email" id="vendorEmail" placeholder="vendor@example.com" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="vendorPassword">Password</label>
+                        <input type="password" id="vendorPassword" placeholder="Enter your password" required>
+                    </div>
+                    <div class="form-options">
+                        <label class="checkbox-label">
+                            <input type="checkbox"> Remember me
+                        </label>
+                        <a href="#" class="forgot-password">Forgot password?</a>
+                    </div>
+                    <button type="submit" class="login-btn">Sign In</button>
+                </form>
+
+                <div class="divider"><span>or</span></div>
+
+                <button class="social-btn google-btn">
+                    <i class="fab fa-google"></i> Continue with Google
+                </button>
+                <button class="social-btn facebook-btn">
+                    <i class="fab fa-facebook-f"></i> Continue with Facebook
+                </button>
+            </div>
+
+            <!-- Admin Login Form -->
+            <div id="adminLoginForm" class="hidden">
+                <form id="adminLogin">
+                    <div class="form-group">
+                        <label for="adminEmail">Admin Email</label>
+                        <input type="email" id="adminEmail" placeholder="admin@fooda.com" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="adminPassword">Password</label>
+                        <input type="password" id="adminPassword" placeholder="Enter your password" required>
+                    </div>
+                    <div class="form-options">
+                        <label class="checkbox-label">
+                            <input type="checkbox"> Remember me
+                        </label>
+                        <a href="#" class="forgot-password">Forgot password?</a>
+                    </div>
+                    <button type="submit" class="login-btn">Sign In as Admin</button>
+                </form>
+            </div>
+
+            <div class="signup-link">
+                <p>Want to become a vendor? <a href="#" id="showRegister">Register here</a></p>
+            </div>
+        </div>
+
+        <!-- Registration Form -->
+        <div id="registerForm" class="hidden">
+            <form id="vendorRegisterForm">
+                <div class="form-group">
+                    <label for="registerName">Full Name</label>
+                    <input type="text" id="registerName" placeholder="John Doe" required>
+                </div>
+                <div class="form-group">
+                    <label for="registerRestaurant">Restaurant Name</label>
+                    <input type="text" id="registerRestaurant" placeholder="Pizza Palace" required>
+                </div>
+                <div class="form-group">
+                    <label for="registerEmail">Email Address</label>
+                    <input type="email" id="registerEmail" placeholder="your@email.com" required>
+                </div>
+                <div class="form-group">
+                    <label for="registerPhone">Phone Number</label>
+                    <input type="tel" id="registerPhone" placeholder="+1 234 567 8900" required>
+                </div>
+                <div class="form-group">
+                    <label for="registerPassword">Password</label>
+                    <input type="password" id="registerPassword" placeholder="Minimum 6 characters" required
+                        minlength="6">
+                </div>
+                <div class="form-group">
+                    <label for="registerConfirmPassword">Confirm Password</label>
+                    <input type="password" id="registerConfirmPassword" placeholder="Confirm your password" required>
+                </div>
+                <button type="submit" class="login-btn">Create Account</button>
+            </form>
+
+            <div class="signup-link">
+                <p>Already have an account? <a href="#" id="showLogin">Sign in</a></p>
+            </div>
+        </div>
+    </div>
+
+    <script src="login.js"></script>
+</body>
+
+</html>
