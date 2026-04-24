@@ -33,11 +33,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     useEffect(() => {
         // Add timeout to prevent infinite loading
         const timeout = setTimeout(() => {
-            if (loading) {
-                console.warn('Auth loading timeout reached, forcing load complete');
-                setLoading(false);
-            }
-        }, 3000); // 3 second timeout (reduced from 10s)
+            if (loading) setLoading(false);
+        }, 3000);
 
         // Get initial session
         supabase.auth.getSession().then(({ data: { session } }) => {
@@ -48,14 +45,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             } else {
                 setLoading(false);
             }
-        }).catch((error) => {
-            console.error('Error getting session:', error);
+        }).catch(() => {
             setLoading(false);
         });
 
         // Listen for auth changes
-        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-            console.log('Auth state change:', event);
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
             setSession(session);
             setUser(session?.user ?? null);
 
@@ -96,17 +91,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             try {
                 const { data, error } = await Promise.race([queryPromise, timeoutPromise]) as any;
 
-                if (!error && data?.role) {
-                    // Update role if we got a different one from the database
-                    if (data.role !== metaRole) {
-                        console.log('Updating role from database:', data.role);
-                        setRole(data.role as UserRole);
-                    }
-                } else if (error) {
-                    console.log('User not found in users table or query blocked:', error.message);
+                if (!error && data?.role && data.role !== metaRole) {
+                    setRole(data.role as UserRole);
                 }
-            } catch (timeoutError) {
-                console.log('Database query timed out, using metadata role');
+            } catch {
+                // Timed out — keep metadata role
             }
 
             // If we didn't set role from metadata, use default
@@ -114,9 +103,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 setRole('user');
                 setLoading(false);
             }
-        } catch (error) {
-            console.error('Error fetching role:', error);
-            // Ultimate fallback
+        } catch {
             setRole(authUser.user_metadata?.role || 'user');
             setLoading(false);
         }

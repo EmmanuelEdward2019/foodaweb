@@ -530,19 +530,20 @@ const VendorDashboard = () => {
 const CategoryModal = ({ vendor, category, onClose, onSave }: { vendor: Vendor; category: MenuCategory | null; onClose: () => void; onSave: () => void }) => {
     const [form, setForm] = useState({ name: category?.name || '', description: category?.description || '', is_active: category?.is_active ?? true, sort_order: category?.sort_order ?? 0 });
     const [saving, setSaving] = useState(false);
+    const [error, setError] = useState('');
 
     const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault(); setSaving(true);
+        e.preventDefault(); setSaving(true); setError('');
         try {
             if (category) {
-                const { error } = await supabase.from('menu_categories').update(form).eq('id', category.id);
-                if (error) throw error;
+                const { error: err } = await supabase.from('menu_categories').update(form).eq('id', category.id);
+                if (err) throw err;
             } else {
-                const { error } = await supabase.from('menu_categories').insert({ ...form, vendor_id: vendor.id });
-                if (error) throw error;
+                const { error: err } = await supabase.from('menu_categories').insert({ ...form, vendor_id: vendor.id });
+                if (err) throw err;
             }
             onSave();
-        } catch (err: any) { alert(err.message); } finally { setSaving(false); }
+        } catch (err: any) { setError(err.message); } finally { setSaving(false); }
     };
 
     return (
@@ -553,6 +554,7 @@ const CategoryModal = ({ vendor, category, onClose, onSave }: { vendor: Vendor; 
                     <button onClick={onClose} style={{ background:'none', border:'none', cursor:'pointer' }}><X size={20}/></button>
                 </div>
                 <form onSubmit={handleSubmit}>
+                    {error && <div style={{ background:'#fee2e2', color:'#dc2626', borderRadius:8, padding:'10px 14px', marginBottom:14, fontSize:13 }}>{error}</div>}
                     <div style={{ marginBottom:'16px' }}>
                         <label style={{ display:'block', marginBottom:'6px', color:'#555', fontWeight:'500', fontSize:'14px' }}>Category Name *</label>
                         <input required value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} style={inputStyle} placeholder="e.g. Burgers, Drinks, Sides"/>
@@ -585,12 +587,13 @@ const CategoryModal = ({ vendor, category, onClose, onSave }: { vendor: Vendor; 
 const VendorSettingsForm = ({ vendor, onSave }: { vendor: Vendor; onSave: (v: Vendor) => void }) => {
     const [form, setForm] = useState({ name: vendor.name || '', email: vendor.email || '', phone: vendor.phone || '', description: vendor.description || '' });
     const [saving, setSaving] = useState(false);
+    const [error, setError] = useState('');
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault(); setSaving(true);
-        const { data, error } = await supabase.from('vendors').update(form).eq('id', vendor.id).select().single();
+        const { data, error: err } = await supabase.from('vendors').update(form).eq('id', vendor.id).select().single();
         setSaving(false);
-        if (error) { alert(error.message); return; }
+        if (err) { setError(err.message); return; }
         onSave(data as Vendor);
     };
 
@@ -598,6 +601,7 @@ const VendorSettingsForm = ({ vendor, onSave }: { vendor: Vendor; onSave: (v: Ve
         <div style={{ background:'#fff', padding:'28px', borderRadius:'12px', boxShadow:'0 2px 10px rgba(0,0,0,.08)', maxWidth:'600px' }}>
             <h3 style={{ color:'#333', marginBottom:'24px' }}>Restaurant Settings</h3>
             <form onSubmit={handleSubmit}>
+                {error && <div style={{ background:'#fee2e2', color:'#dc2626', borderRadius:8, padding:'10px 14px', marginBottom:14, fontSize:13 }}>{error}</div>}
                 {[
                     { key:'name',        label:'Restaurant Name *', type:'text',  req:true  },
                     { key:'email',       label:'Contact Email',      type:'email', req:false },
@@ -626,11 +630,12 @@ const MenuItemModal = ({ vendor, item, categories, onClose, onSave }: any) => {
     const [addons, setAddons] = useState<any[]>([]);
     const [newAddon, setNewAddon] = useState({ name:'', price:'' });
     const [saving, setSaving] = useState(false);
+    const [error, setError] = useState('');
 
     useEffect(() => { if (item?.id) supabase.from('menu_item_addons').select('*').eq('menu_item_id', item.id).order('sort_order').then(r => setAddons(r.data||[])); }, [item]);
 
     const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault(); setSaving(true);
+        e.preventDefault(); setSaving(true); setError('');
         try {
             const payload = { ...form, vendor_id: vendor.id, price: parseFloat(form.price as any), prep_time: form.prep_time ? parseInt(form.prep_time as any) : null, category_id: form.category_id || null, image_url: form.image_url || null };
             let menuItemId = item?.id;
@@ -649,7 +654,7 @@ const MenuItemModal = ({ vendor, item, categories, onClose, onSave }: any) => {
                 }
             }
             onSave();
-        } catch (err: any) { alert(err.message); } finally { setSaving(false); }
+        } catch (err: any) { setError(err.message); } finally { setSaving(false); }
     };
 
     return (
@@ -660,6 +665,7 @@ const MenuItemModal = ({ vendor, item, categories, onClose, onSave }: any) => {
                     <button onClick={onClose} style={{ background:'none', border:'none', cursor:'pointer' }}><X size={20}/></button>
                 </div>
                 <form onSubmit={handleSubmit}>
+                    {error && <div style={{ background:'#fee2e2', color:'#dc2626', borderRadius:8, padding:'10px 14px', marginBottom:14, fontSize:13 }}>{error}</div>}
                     <div style={{ marginBottom:'14px' }}>
                         <label style={{ display:'block', marginBottom:'6px', color:'#555', fontWeight:'500', fontSize:'14px' }}>Item Name *</label>
                         <input required value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} style={inputStyle}/>

@@ -30,6 +30,17 @@ const AdminDashboard = () => {
     const [deliveryPersons, setDeliveryPersons] = useState<any[]>([]);
     const [analyticsData, setAnalyticsData] = useState<{ dailyRevenue: {date: string; revenue: number; orders: number}[]; topVendors: {name: string; revenue: number; orders: number}[]; ordersByStatus: Record<string, number> }>({ dailyRevenue: [], topVendors: [], ordersByStatus: {} });
     const [showDeliveryModal, setShowDeliveryModal] = useState(false);
+    const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
+    const [confirmDialog, setConfirmDialog] = useState<{ message: string; onConfirm: () => void } | null>(null);
+
+    const showToast = (msg: string, type: 'success' | 'error' = 'success') => {
+        setToast({ msg, type });
+        setTimeout(() => setToast(null), 3500);
+    };
+
+    const showConfirm = (message: string, onConfirm: () => void) => {
+        setConfirmDialog({ message, onConfirm });
+    };
 
     useEffect(() => {
         fetchData();
@@ -361,109 +372,45 @@ const AdminDashboard = () => {
 
     const toggleVendorStatus = async (vendorId: string, ownerId: string, currentStatus: boolean) => {
         try {
-            // Update vendor status
-            const { error: vendorError } = await supabase
-                .from('vendors')
-                .update({ is_active: !currentStatus })
-                .eq('id', vendorId);
-
+            const { error: vendorError } = await supabase.from('vendors').update({ is_active: !currentStatus }).eq('id', vendorId);
             if (vendorError) throw vendorError;
-
-            // Also update user status
-            const { error: userError } = await supabase
-                .from('users')
-                .update({ is_active: !currentStatus })
-                .eq('id', ownerId);
-
+            const { error: userError } = await supabase.from('users').update({ is_active: !currentStatus }).eq('id', ownerId);
             if (userError) throw userError;
-
-            alert(`Vendor ${!currentStatus ? 'activated' : 'deactivated'} successfully!`);
+            showToast(`Vendor ${!currentStatus ? 'activated' : 'deactivated'}`);
             fetchData();
-        } catch (error) {
-            console.error('Error updating vendor:', error);
-            alert('Failed to update vendor status');
+        } catch (error: any) {
+            showToast(error.message || 'Failed to update vendor status', 'error');
         }
     };
 
 
-    const deleteVendor = async (vendorId: string, ownerId: string, vendorName: string) => {
-        if (!confirm(`Are you sure you want to delete "${vendorName}"? This will also delete all associated menu items and cannot be undone.`)) {
-            return;
-        }
-
-        try {
-            console.log('Starting vendor deletion:', { vendorId, ownerId, vendorName });
-
-            // Delete menu items first (foreign key constraint)
-            const { error: menuItemsError } = await supabase
-                .from('menu_items')
-                .delete()
-                .eq('vendor_id', vendorId);
-
-            if (menuItemsError) {
-                console.error('Error deleting menu items:', menuItemsError);
-                throw new Error(`Failed to delete menu items: ${menuItemsError.message}`);
+    const deleteVendor = (vendorId: string, ownerId: string, vendorName: string) => {
+        showConfirm(
+            `Delete "${vendorName}"? This will also delete all menu items and cannot be undone.`,
+            async () => {
+                try {
+                    const { error: e1 } = await supabase.from('menu_items').delete().eq('vendor_id', vendorId);
+                    if (e1) throw new Error(`Failed to delete menu items: ${e1.message}`);
+                    const { error: e2 } = await supabase.from('menu_categories').delete().eq('vendor_id', vendorId);
+                    if (e2) throw new Error(`Failed to delete categories: ${e2.message}`);
+                    const { error: e3 } = await supabase.from('vendors').delete().eq('id', vendorId);
+                    if (e3) throw new Error(`Failed to delete vendor: ${e3.message}`);
+                    const { error: e4 } = await supabase.from('users').delete().eq('id', ownerId);
+                    if (e4) throw new Error(`Failed to delete user: ${e4.message}`);
+                    showToast('Vendor deleted successfully');
+                    await fetchData();
+                } catch (err: any) {
+                    showToast(err.message || 'Failed to delete vendor', 'error');
+                }
             }
-            console.log('Menu items deleted');
-
-            // Delete menu categories
-            const { error: categoriesError } = await supabase
-                .from('menu_categories')
-                .delete()
-                .eq('vendor_id', vendorId);
-
-            if (categoriesError) {
-                console.error('Error deleting categories:', categoriesError);
-                throw new Error(`Failed to delete categories: ${categoriesError.message}`);
-            }
-            console.log('Categories deleted');
-
-            // Delete vendor
-            const { error: vendorError, count: vendorCount } = await supabase
-                .from('vendors')
-                .delete()
-                .eq('id', vendorId);
-
-            if (vendorError) {
-                console.error('Error deleting vendor:', vendorError);
-                throw new Error(`Failed to delete vendor: ${vendorError.message}`);
-            }
-            console.log('Vendor deleted, count:', vendorCount);
-
-            // Delete user record
-            const { error: userError, count: userCount } = await supabase
-                .from('users')
-                .delete()
-                .eq('id', ownerId);
-
-            if (userError) {
-                console.error('Error deleting user:', userError);
-                throw new Error(`Failed to delete user: ${userError.message}`);
-            }
-            console.log('User deleted, count:', userCount);
-
-            alert('Vendor deleted successfully!');
-            await fetchData(); // Refresh the data
-        } catch (error: any) {
-            console.error('Error deleting vendor:', error);
-            alert(error.message || 'Failed to delete vendor. Please check console for details.');
-        }
+        );
     };
 
 
     const updateOrderStatus = async (orderId: string, newStatus: string) => {
-        try {
-            const { error } = await supabase
-                .from('orders')
-                .update({ status: newStatus })
-                .eq('id', orderId);
-
-            if (error) throw error;
-            fetchData();
-        } catch (error) {
-            console.error('Error updating order:', error);
-            alert('Failed to update order status');
-        }
+        const { error } = await supabase.from('orders').update({ status: newStatus }).eq('id', orderId);
+        if (error) { showToast('Failed to update order status', 'error'); return; }
+        fetchData();
     };
 
     const renderOverview = () => (
@@ -739,21 +686,16 @@ const AdminDashboard = () => {
 
     const handleSaveSettings = async () => {
         try {
-            // Update each setting
-            const updates = Object.keys(settingsForm).map(key =>
-                supabase
-                    .from('platform_settings')
-                    .update({ setting_value: settingsForm[key] })
-                    .eq('setting_key', key)
+            await Promise.all(
+                Object.keys(settingsForm).map(key =>
+                    supabase.from('platform_settings').update({ setting_value: settingsForm[key] }).eq('setting_key', key)
+                )
             );
-
-            await Promise.all(updates);
             setSettings(settingsForm);
             setEditingSettings(false);
-            alert('Settings updated successfully!');
-        } catch (error) {
-            console.error('Error updating settings:', error);
-            alert('Failed to update settings');
+            showToast('Settings saved');
+        } catch (error: any) {
+            showToast(error.message || 'Failed to save settings', 'error');
         }
     };
 
@@ -1100,6 +1042,34 @@ const AdminDashboard = () => {
                 />
             )}
 
+            {/* Toast notification */}
+            {toast && (
+                <div style={{ position: 'fixed', bottom: 28, right: 28, padding: '12px 20px', borderRadius: 10, background: toast.type === 'error' ? '#dc2626' : '#16a34a', color: '#fff', fontWeight: 600, fontSize: 14, zIndex: 9999, boxShadow: '0 4px 16px rgba(0,0,0,0.2)', maxWidth: 340 }}>
+                    {toast.msg}
+                </div>
+            )}
+
+            {/* Confirm dialog */}
+            {confirmDialog && (
+                <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9998, padding: 24 }}>
+                    <div style={{ background: '#fff', borderRadius: 16, padding: 28, maxWidth: 400, width: '100%', textAlign: 'center', boxShadow: '0 8px 32px rgba(0,0,0,0.15)' }}>
+                        <div style={{ fontSize: 36, marginBottom: 12 }}>⚠️</div>
+                        <p style={{ fontSize: 15, color: '#333', margin: '0 0 24px', lineHeight: 1.5 }}>{confirmDialog.message}</p>
+                        <div style={{ display: 'flex', gap: 12 }}>
+                            <button onClick={() => setConfirmDialog(null)} style={{ flex: 1, padding: '10px 0', border: '1px solid #ddd', borderRadius: 10, background: '#fff', cursor: 'pointer', fontWeight: 500 }}>
+                                Cancel
+                            </button>
+                            <button
+                                onClick={() => { confirmDialog.onConfirm(); setConfirmDialog(null); }}
+                                style={{ flex: 1, padding: '10px 0', border: 'none', borderRadius: 10, background: '#dc2626', color: '#fff', cursor: 'pointer', fontWeight: 700 }}
+                            >
+                                Confirm
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             <style>{`
                 @keyframes spin {
                     0% { transform: rotate(0deg); }
@@ -1188,6 +1158,7 @@ const VendorModal = ({ vendor, onClose, onSave }: any) => {
         password: ''
     });
     const [saving, setSaving] = useState(false);
+    const [error, setError] = useState('');
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -1219,7 +1190,8 @@ const VendorModal = ({ vendor, onClose, onSave }: any) => {
 
                 if (userError) throw userError;
 
-                alert('Vendor updated successfully!');
+                onSave();
+                return;
             } else {
                 // Create vendor account
                 const { data: authData, error: authError } = await supabase.auth.signUp({
@@ -1258,13 +1230,11 @@ const VendorModal = ({ vendor, onClose, onSave }: any) => {
                     });
                 }
 
-                alert('Vendor created successfully!');
             }
 
             onSave();
         } catch (error: any) {
-            console.error('Error creating vendor:', error);
-            alert(error.message || 'Failed to create vendor');
+            setError(error.message || 'Failed to save vendor');
         } finally {
             setSaving(false);
         }
@@ -1298,6 +1268,7 @@ const VendorModal = ({ vendor, onClose, onSave }: any) => {
                 </div>
 
                 <form onSubmit={handleSubmit}>
+                    {error && <div style={{ background: '#fee2e2', color: '#dc2626', borderRadius: 8, padding: '10px 14px', marginBottom: 14, fontSize: 13 }}>{error}</div>}
                     <div style={{ marginBottom: '16px' }}>
                         <label style={{ display: 'block', marginBottom: '8px', color: '#555', fontWeight: '500' }}>
                             Business Name *

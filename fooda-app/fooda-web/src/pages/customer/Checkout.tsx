@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { useCart } from '../../context/CartContext';
@@ -12,9 +12,6 @@ interface DeliveryAddress {
   notes: string;
 }
 
-const TAX_RATE = 0.075;
-const DELIVERY_FEE = 500;
-
 const Checkout = () => {
   const { id: vendorId } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -24,9 +21,24 @@ const Checkout = () => {
   const [address, setAddress] = useState<DeliveryAddress>({ street: '', area: '', city: '', phone: '', notes: '' });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [taxRate, setTaxRate] = useState(0.075);
+  const [deliveryFee, setDeliveryFee] = useState(500);
 
-  const taxAmount = subtotal * TAX_RATE;
-  const total = subtotal + taxAmount + DELIVERY_FEE;
+  useEffect(() => {
+    supabase
+      .from('platform_settings')
+      .select('setting_key, setting_value')
+      .in('setting_key', ['tax_rate', 'delivery_fee'])
+      .then(({ data }) => {
+        (data ?? []).forEach(s => {
+          if (s.setting_key === 'tax_rate') setTaxRate(parseFloat(s.setting_value));
+          if (s.setting_key === 'delivery_fee') setDeliveryFee(parseFloat(s.setting_value));
+        });
+      });
+  }, []);
+
+  const taxAmount = subtotal * taxRate;
+  const total = subtotal + taxAmount + deliveryFee;
 
   const handleField = (field: keyof DeliveryAddress, value: string) =>
     setAddress(prev => ({ ...prev, [field]: value }));
@@ -169,8 +181,8 @@ const Checkout = () => {
 
             {[
               { label: 'Subtotal', value: subtotal },
-              { label: 'Tax (7.5%)', value: taxAmount },
-              { label: 'Delivery Fee', value: DELIVERY_FEE },
+              { label: `Tax (${(taxRate * 100).toFixed(1)}%)`, value: taxAmount },
+              { label: 'Delivery Fee', value: deliveryFee },
             ].map(({ label, value }) => (
               <div key={label} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, fontSize: 14, color: '#666' }}>
                 <span>{label}</span>
