@@ -18,10 +18,9 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ allowedRoles }) => {
     }
 
     if (allowedRoles && role && !allowedRoles.includes(role)) {
-        // Redirect based on actual role to avoid infinite loops if configured wrong
         if (role === 'admin') return <Navigate to="/admin" replace />;
         if (role === 'vendor') return <Navigate to="/vendor" replace />;
-        return <Navigate to="/" replace />;
+        return <Navigate to="/restaurants" replace />;
     }
 
     return <Outlet />;

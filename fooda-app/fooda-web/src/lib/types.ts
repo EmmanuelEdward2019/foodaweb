@@ -99,6 +99,39 @@ export interface PlatformSetting {
     updated_by?: string;
 }
 
+export interface Review {
+    id: string;
+    customer_id: string;
+    vendor_id: string;
+    order_id?: string;
+    rating: number;
+    comment?: string;
+    created_at: string;
+}
+
+export interface UserAddress {
+    id: string;
+    user_id: string;
+    label: string;
+    street: string;
+    area?: string;
+    city: string;
+    is_default: boolean;
+    created_at: string;
+}
+
+export interface Notification {
+    id: string;
+    user_id?: string;
+    vendor_id?: string;
+    order_id?: string;
+    type: string;
+    title: string;
+    message: string;
+    is_read: boolean;
+    created_at: string;
+}
+
 export interface MenuItemAddon {
     id: string;
     menu_item_id: string;

@@ -1,11 +1,6 @@
-// Create Order Edge Function
-// Import the necessary modules for Supabase Edge Functions
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { corsHeaders } from "../_shared/utils.ts";
-import { generateOrderNumber, calculateOrderTotals } from "../_shared/utils.ts";
-
-console.log("Create Order function started");
+import { corsHeaders, generateOrderNumber, calculateOrderTotals } from "../_shared/utils.ts";
 
 serve(async (req) => {
     if (req.method === 'OPTIONS') {
@@ -13,51 +8,121 @@ serve(async (req) => {
     }
 
     try {
-        // Create a Supabase client with the request headers
-        const supabaseClient = createClient(
+        // Use anon key + auth header so RLS applies to the customer
+        const supabase = createClient(
             Deno.env.get('SUPABASE_URL') ?? '',
-            Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
-            {
-                global: {
-                    headers: { Authorization: req.headers.get('Authorization')! },
-                },
-            }
+            Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+            { global: { headers: { Authorization: req.headers.get('Authorization')! } } }
         );
 
-        // Get the session
-        const {
-            data: { session },
-        } = await supabaseClient.auth.getSession();
+        // Service-role client for operations that bypass RLS (reads platform settings, etc.)
+        const supabaseAdmin = createClient(
+            Deno.env.get('SUPABASE_URL') ?? '',
+            Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+        );
 
-        if (!session) {
-            return new Response(
-                JSON.stringify({ error: 'Unauthorized' }),
-                { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
-            );
+        const { data: { user }, error: authError } = await supabase.auth.getUser();
+        if (authError || !user) {
+            return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+                status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+            });
         }
 
-        // Parse the request body
-        const { vendor_id, delivery_address, items, notes, delivery_fee } = await req.json();
+        const body = await req.json();
+        const { vendor_id, delivery_address, items, notes } = body;
 
-        // Validate required fields
-        if (!vendor_id || !delivery_address || !items || items.length === 0) {
-            return new Response(
-                JSON.stringify({ error: 'Missing required fields: vendor_id, delivery_address, and items are required' }),
-                { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
-            );
+        if (!vendor_id || !delivery_address || !Array.isArray(items) || items.length === 0) {
+            return new Response(JSON.stringify({ error: 'vendor_id, delivery_address, and items are required' }), {
+                status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+            });
         }
 
-        // Generate order number
+        // Validate item structure
+        for (const item of items) {
+            if (!item.menu_item_id || !item.quantity || item.quantity < 1) {
+                return new Response(JSON.stringify({ error: 'Each item needs menu_item_id and quantity >= 1' }), {
+                    status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+                });
+            }
+        }
+
+        // Fetch actual menu item prices from DB (prevents price manipulation from client)
+        const menuItemIds = items.map((i: any) => i.menu_item_id);
+        const { data: dbItems, error: itemsError } = await supabaseAdmin
+            .from('menu_items')
+            .select('id, name, price, is_available, vendor_id')
+            .in('id', menuItemIds);
+
+        if (itemsError || !dbItems) {
+            return new Response(JSON.stringify({ error: 'Failed to fetch menu items' }), {
+                status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+            });
+        }
+
+        // Validate all items exist, belong to this vendor, and are available
+        for (const reqItem of items) {
+            const dbItem = dbItems.find((d: any) => d.id === reqItem.menu_item_id);
+            if (!dbItem) {
+                return new Response(JSON.stringify({ error: `Menu item not found: ${reqItem.menu_item_id}` }), {
+                    status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+                });
+            }
+            if (dbItem.vendor_id !== vendor_id) {
+                return new Response(JSON.stringify({ error: `Item ${dbItem.name} does not belong to this vendor` }), {
+                    status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+                });
+            }
+            if (!dbItem.is_available) {
+                return new Response(JSON.stringify({ error: `${dbItem.name} is currently unavailable` }), {
+                    status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+                });
+            }
+        }
+
+        // Fetch platform settings for tax rate and delivery fee
+        const { data: settings } = await supabaseAdmin
+            .from('platform_settings')
+            .select('setting_key, setting_value')
+            .in('setting_key', ['tax_rate', 'delivery_fee', 'min_order_amount']);
+
+        const getSettingNumber = (key: string, fallback: number): number => {
+            const found = settings?.find((s: any) => s.setting_key === key);
+            return found ? parseFloat(found.setting_value) : fallback;
+        };
+
+        const taxRatePct = getSettingNumber('tax_rate', 7.5);
+        const taxRate = taxRatePct / 100;
+        const platformDeliveryFee = getSettingNumber('delivery_fee', 500);
+        const minOrderAmount = getSettingNumber('min_order_amount', 1000);
+
+        // Build validated items using DB prices
+        const validatedItems = items.map((reqItem: any) => {
+            const dbItem = dbItems.find((d: any) => d.id === reqItem.menu_item_id)!;
+            return {
+                menu_item_id: reqItem.menu_item_id,
+                quantity: reqItem.quantity,
+                price: Number(dbItem.price),
+                special_instructions: reqItem.special_instructions || null,
+            };
+        });
+
+        const totals = calculateOrderTotals(validatedItems, platformDeliveryFee, taxRate);
+
+        if (totals.subtotal < minOrderAmount) {
+            return new Response(JSON.stringify({
+                error: `Minimum order amount is ₦${minOrderAmount.toLocaleString()}`
+            }), {
+                status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+            });
+        }
+
         const order_number = generateOrderNumber();
 
-        // Calculate order totals
-        const totals = calculateOrderTotals(items, delivery_fee);
-
-        // Begin database transaction
-        const { data: order, error: orderError } = await supabaseClient
+        // Insert order
+        const { data: order, error: orderError } = await supabaseAdmin
             .from('orders')
             .insert({
-                customer_id: session.user.id,
+                customer_id: user.id,
                 vendor_id,
                 order_number,
                 delivery_address,
@@ -65,56 +130,61 @@ serve(async (req) => {
                 subtotal: totals.subtotal,
                 tax_amount: totals.taxAmount,
                 total_amount: totals.totalAmount,
-                notes,
-                status: 'pending'
+                notes: notes || null,
+                status: 'pending',
+                payment_status: 'pending'
             })
             .select()
             .single();
 
         if (orderError) {
-            console.error('Order creation error:', orderError);
-            return new Response(
-                JSON.stringify({ error: orderError.message }),
-                { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
-            );
+            console.error('Order insert error:', orderError);
+            return new Response(JSON.stringify({ error: orderError.message }), {
+                status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+            });
         }
 
-        // Insert order items
-        const orderItems = items.map((item: any) => ({
+        // Insert order items using DB prices
+        const orderItems = validatedItems.map((item) => ({
             order_id: order.id,
             menu_item_id: item.menu_item_id,
             quantity: item.quantity,
-            price_per_unit: item.price_per_unit,
-            total_price: item.price_per_unit * item.quantity,
-            special_instructions: item.special_instructions
+            price_per_unit: item.price,
+            total_price: Number((item.price * item.quantity).toFixed(2)),
+            special_instructions: item.special_instructions,
         }));
 
-        const { error: itemsError } = await supabaseClient
+        const { error: itemsInsertError } = await supabaseAdmin
             .from('order_items')
             .insert(orderItems);
 
-        if (itemsError) {
-            console.error('Order items creation error:', itemsError);
-            // Try to delete the order if items creation failed
-            await supabaseClient.from('orders').delete().eq('id', order.id);
-
-            return new Response(
-                JSON.stringify({ error: itemsError.message }),
-                { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
-            );
+        if (itemsInsertError) {
+            // Rollback order
+            await supabaseAdmin.from('orders').delete().eq('id', order.id);
+            return new Response(JSON.stringify({ error: itemsInsertError.message }), {
+                status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+            });
         }
 
-        // Return the created order
-        return new Response(
-            JSON.stringify({ order }),
-            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 201 }
-        );
+        // Notify vendor of new order
+        await supabaseAdmin.from('notifications').insert({
+            user_id: null,
+            vendor_id,
+            order_id: order.id,
+            type: 'order_created',
+            title: 'New Order',
+            message: `New order #${order_number} received. Total: ₦${totals.totalAmount.toLocaleString()}`,
+            is_read: false
+        }).catch((e: any) => console.warn('Notification insert failed:', e.message));
+
+        return new Response(JSON.stringify({ order }), {
+            status: 201, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
 
     } catch (error) {
-        console.error('Unexpected error:', error);
-        return new Response(
-            JSON.stringify({ error: error.message }),
-            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
-        );
+        console.error('create-order error:', error);
+        return new Response(JSON.stringify({ error: error.message }), {
+            status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
     }
 });

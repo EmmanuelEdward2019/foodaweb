@@ -86,7 +86,7 @@ serve(async (req: Request) => {
                 email,
                 amount: Math.round(amount * 100), // Paystack expects amount in kobo/cents
                 reference,
-                callback_url: callback_url || `${Deno.env.get('APP_URL') || 'http://localhost:3000'}/payment/callback`,
+                callback_url: callback_url || `${Deno.env.get('APP_URL') || ''}/payment/callback`,
                 metadata: {
                     order_id,
                     order_number: order.order_number,
@@ -111,26 +111,14 @@ serve(async (req: Request) => {
             );
         }
 
-        // Store payment reference in database
+        // Store payment reference cleanly (dedicated column, not in notes)
         await supabase
             .from('orders')
             .update({
                 payment_status: 'pending',
-                notes: order.notes ? `${order.notes}\nPayment Reference: ${reference}` : `Payment Reference: ${reference}`
+                payment_reference: reference
             })
             .eq('id', order_id);
-
-        // Create wallet transaction record (pending)
-        await supabase
-            .from('wallet_transactions')
-            .insert({
-                user_id: (await supabase.from('orders').select('customer_id').eq('id', order_id).single()).data?.customer_id,
-                order_id,
-                transaction_type: 'debit',
-                amount,
-                balance_after: 0, // Will be updated on completion
-                description: `Payment for order ${order.order_number} (${reference})`
-            });
 
         return new Response(
             JSON.stringify({
