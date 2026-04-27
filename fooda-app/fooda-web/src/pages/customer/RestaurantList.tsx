@@ -260,7 +260,8 @@ const RestaurantList = () => {
             placeholder="Search restaurants or cuisines…"
             value={search}
             onChange={e => setSearch(e.target.value)}
-            style={{ width: '100%', padding: '13px 50px 13px 18px', borderRadius: 12, border: 'none', fontSize: 15, outline: 'none', boxSizing: 'border-box', boxShadow: '0 4px 16px rgba(0,0,0,0.12)' }}
+            className="restaurant-search-input"
+            style={{ width: '100%', padding: '13px 50px 13px 18px', borderRadius: 12, border: 'none', fontSize: 15, outline: 'none', boxSizing: 'border-box', boxShadow: '0 4px 16px rgba(0,0,0,0.12)', color: '#222' }}
           />
           <span style={{ position: 'absolute', right: 16, top: '50%', transform: 'translateY(-50%)', fontSize: 18, opacity: 0.5 }}>🔍</span>
         </div>

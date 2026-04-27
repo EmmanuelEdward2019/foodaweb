@@ -1,2 +1,6 @@
 @import "tailwindcss";
 @import './styles/landing.css';
+
+.restaurant-search-input::placeholder {
+  color: rgba(180, 180, 180, 0.9);
+}
