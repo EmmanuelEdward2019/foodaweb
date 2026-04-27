@@ -1,0 +1,7 @@
+{
+  "buildCommand": "cd fooda-app/fooda-web && npm install && npm run build",
+  "outputDirectory": "fooda-app/fooda-web/dist",
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
+}
