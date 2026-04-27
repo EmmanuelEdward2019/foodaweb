@@ -20,11 +20,18 @@ interface UserAddress {
   is_default: boolean;
 }
 
+interface Stats {
+  totalOrders: number;
+  totalSpent: number;
+  reviewsGiven: number;
+}
+
 const Profile = () => {
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [addresses, setAddresses] = useState<UserAddress[]>([]);
+  const [stats, setStats] = useState<Stats>({ totalOrders: 0, totalSpent: 0, reviewsGiven: 0 });
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState({ full_name: '', phone: '' });
   const [loading, setLoading] = useState(true);
@@ -40,9 +47,17 @@ const Profile = () => {
     Promise.all([
       supabase.from('users').select('id, full_name, email, phone, avatar_url').eq('id', user.id).single(),
       supabase.from('user_addresses').select('*').eq('user_id', user.id).order('is_default', { ascending: false }),
-    ]).then(([{ data: p }, { data: a }]) => {
+      supabase.from('orders').select('total_amount, payment_status').eq('customer_id', user.id),
+      supabase.from('reviews').select('id', { count: 'exact', head: true }).eq('customer_id', user.id),
+    ]).then(([{ data: p }, { data: a }, { data: orders }, { count: reviewCount }]) => {
       if (p) { setProfile(p); setForm({ full_name: p.full_name ?? '', phone: p.phone ?? '' }); }
       setAddresses(a ?? []);
+      const completed = (orders ?? []).filter(o => o.payment_status === 'completed');
+      setStats({
+        totalOrders: (orders ?? []).length,
+        totalSpent: completed.reduce((sum, o) => sum + Number(o.total_amount), 0),
+        reviewsGiven: reviewCount ?? 0,
+      });
       setLoading(false);
     });
   }, [user]);
@@ -103,6 +118,9 @@ const Profile = () => {
     </div>
   );
 
+  const fmtCurrency = (n: number) =>
+    '₦' + n.toLocaleString('en-NG', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+
   return (
     <div style={{ minHeight: '100vh', background: '#f8f9fa', fontFamily: 'Inter, system-ui, sans-serif' }}>
       {/* Header */}
@@ -114,6 +132,21 @@ const Profile = () => {
       <div style={{ maxWidth: 600, margin: '0 auto', padding: '24px 20px' }}>
         {success && <div style={{ background: '#dcfce7', color: '#16a34a', borderRadius: 10, padding: '10px 14px', marginBottom: 16, fontSize: 14, fontWeight: 600 }}>✅ {success}</div>}
         {error && <div style={{ background: '#fee2e2', color: '#dc2626', borderRadius: 10, padding: '10px 14px', marginBottom: 16, fontSize: 14 }}>{error}</div>}
+
+        {/* Stats row */}
+        <section style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 20 }}>
+          {[
+            { label: 'Total Orders', value: stats.totalOrders, icon: '📦' },
+            { label: 'Total Spent', value: fmtCurrency(stats.totalSpent), icon: '💳' },
+            { label: 'Reviews Given', value: stats.reviewsGiven, icon: '⭐' },
+          ].map(({ label, value, icon }) => (
+            <div key={label} style={{ background: '#fff', borderRadius: 14, padding: '16px 12px', textAlign: 'center', boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }}>
+              <div style={{ fontSize: 24, marginBottom: 6 }}>{icon}</div>
+              <div style={{ fontSize: 18, fontWeight: 800, color: '#1a1a1a', marginBottom: 2 }}>{value}</div>
+              <div style={{ fontSize: 11, color: '#888', fontWeight: 500 }}>{label}</div>
+            </div>
+          ))}
+        </section>
 
         {/* Profile info */}
         <section style={{ background: '#fff', borderRadius: 16, padding: 24, marginBottom: 20, boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }}>
@@ -241,6 +274,7 @@ const Profile = () => {
         <section style={{ background: '#fff', borderRadius: 16, padding: '8px 0', marginBottom: 20, boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }}>
           {[
             { label: '📦 My Orders', to: '/orders' },
+            { label: '🔔 Notifications', to: '/notifications' },
             { label: '🍽️ Browse Restaurants', to: '/restaurants' },
           ].map(({ label, to }) => (
             <Link key={to} to={to} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 20px', textDecoration: 'none', color: '#1a1a1a', borderBottom: '1px solid #f9f9f9', fontSize: 15 }}>

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom'
+import { Link } from 'react-router-dom';
 
 const LandingPage = () => {
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -44,12 +44,14 @@ const LandingPage = () => {
                             <li><a href="#home" onClick={(e) => { e.preventDefault(); handleNavClick('home'); }}>Home</a></li>
                             <li><a href="#features" onClick={(e) => { e.preventDefault(); handleNavClick('features'); }}>Features</a></li>
                             <li><a href="#how-it-works" onClick={(e) => { e.preventDefault(); handleNavClick('how-it-works'); }}>How It Works</a></li>
+                            <li><Link to="/restaurants" onClick={() => setMobileMenuOpen(false)}>Restaurants</Link></li>
                             <li><a href="#testimonials" onClick={(e) => { e.preventDefault(); handleNavClick('testimonials'); }}>Testimonials</a></li>
                             <li><a href="#contact" onClick={(e) => { e.preventDefault(); handleNavClick('contact'); }}>Contact</a></li>
                         </ul>
                     </nav>
                     <div className="auth-buttons">
-                        <Link to="/auth" className="btn btn-outline">Login</Link>
+                        <Link to="/restaurants" className="btn btn-outline" style={{ marginRight: 8 }}>Order Now</Link>
+                        <Link to="/auth" className="btn btn-primary">Login</Link>
                     </div>
                 </div>
             </header>
@@ -61,7 +63,8 @@ const LandingPage = () => {
                         <h1>Delicious Food Delivered to Your Doorstep</h1>
                         <p>Discover the best restaurants in your area and enjoy convenient food delivery with our multivendor platform.</p>
                         <div className="cta-buttons">
-                            <a href="#download" onClick={(e) => { e.preventDefault(); handleNavClick('download'); }} className="btn btn-primary">Download App</a>
+                            <Link to="/restaurants" className="btn btn-primary">Order Now</Link>
+                            <a href="#download" onClick={(e) => { e.preventDefault(); handleNavClick('download'); }} className="btn btn-outline">Download App</a>
                             <Link to="/auth?role=vendor" className="btn btn-outline">Join as Vendor</Link>
                         </div>
                     </div>
@@ -349,6 +352,7 @@ const LandingPage = () => {
                                 <li><a href="#home">Home</a></li>
                                 <li><a href="#features">Features</a></li>
                                 <li><a href="#how-it-works">How It Works</a></li>
+                                <li><Link to="/restaurants">Browse Restaurants</Link></li>
                                 <li><a href="#vendors">Join as Vendor</a></li>
                             </ul>
                         </div>

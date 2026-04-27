@@ -69,42 +69,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }, []);
 
     const fetchUserRole = async (authUser: User) => {
+        // DB role is always authoritative — never trust metadata for role decisions
+        // (admins can have their role changed in the DB without re-registering)
+        const fallback = (authUser.user_metadata?.role as UserRole) || 'customer';
         try {
-            // First, set role from metadata immediately to avoid blocking
-            const metaRole = authUser.user_metadata?.role;
-            if (metaRole) {
-                setRole(metaRole as UserRole);
-                setLoading(false);
-            }
-
-            // Then try to fetch from users table with timeout (non-blocking)
-            const timeoutPromise = new Promise((_, reject) =>
-                setTimeout(() => reject(new Error('Database query timeout')), 5000)
-            );
-
-            const queryPromise = supabase
-                .from('users')
-                .select('role')
-                .eq('id', authUser.id)
-                .single();
-
-            try {
-                const { data, error } = await Promise.race([queryPromise, timeoutPromise]) as any;
-
-                if (!error && data?.role && data.role !== metaRole) {
-                    setRole(data.role as UserRole);
-                }
-            } catch {
-                // Timed out — keep metadata role
-            }
-
-            // If we didn't set role from metadata, use default
-            if (!metaRole) {
-                setRole('user');
-                setLoading(false);
-            }
+            const { data, error } = await Promise.race([
+                supabase.from('users').select('role').eq('id', authUser.id).single(),
+                new Promise<any>((_, reject) => setTimeout(() => reject(new Error('timeout')), 4000)),
+            ]);
+            setRole((!error && data?.role) ? data.role as UserRole : fallback);
         } catch {
-            setRole(authUser.user_metadata?.role || 'user');
+            setRole(fallback);
+        } finally {
             setLoading(false);
         }
     };

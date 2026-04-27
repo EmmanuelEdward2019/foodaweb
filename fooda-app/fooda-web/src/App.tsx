@@ -17,6 +17,7 @@ const OrderTracking    = lazy(() => import('./pages/customer/OrderTracking'));
 const OrderHistory     = lazy(() => import('./pages/customer/OrderHistory'));
 const Profile          = lazy(() => import('./pages/customer/Profile'));
 const PaymentCallback  = lazy(() => import('./pages/customer/PaymentCallback'));
+const Notifications    = lazy(() => import('./pages/customer/Notifications'));
 
 const PageLoader = () => (
   <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'Inter, sans-serif', color: '#888' }}>
@@ -28,8 +29,6 @@ function App() {
   const { role, loading } = useAuth();
 
   if (loading) return <PageLoader />;
-
-  const isCustomer = !role || role === 'customer' || role === 'user';
 
   return (
     <ErrorBoundary>
@@ -45,8 +44,12 @@ function App() {
             } />
             <Route path="/payment/callback" element={<PaymentCallback />} />
 
-            {/* Customer — browsing is public */}
-            <Route path="/restaurants" element={<RestaurantList />} />
+            {/* Customer — browsing is public; redirect logged-in admin/vendor to their dashboard */}
+            <Route path="/restaurants" element={
+              role === 'admin' ? <Navigate to="/admin" replace /> :
+              role === 'vendor' ? <Navigate to="/vendor" replace /> :
+              <RestaurantList />
+            } />
             <Route path="/restaurants/:id" element={<RestaurantDetail />} />
 
             {/* Customer — account pages require auth */}
@@ -55,6 +58,7 @@ function App() {
               <Route path="/orders" element={<OrderHistory />} />
               <Route path="/orders/:id" element={<OrderTracking />} />
               <Route path="/profile" element={<Profile />} />
+              <Route path="/notifications" element={<Notifications />} />
             </Route>
 
             {/* Admin */}
@@ -67,8 +71,12 @@ function App() {
               <Route path="/vendor/*" element={<VendorDashboard />} />
             </Route>
 
-            {/* Catch-all */}
-            <Route path="*" element={<Navigate to={isCustomer ? '/restaurants' : '/'} />} />
+            {/* Catch-all — send each role to their home */}
+            <Route path="*" element={
+              role === 'admin'  ? <Navigate to="/admin"       replace /> :
+              role === 'vendor' ? <Navigate to="/vendor"      replace /> :
+              <Navigate to="/restaurants" replace />
+            } />
           </Routes>
         </Suspense>
       </CartProvider>
