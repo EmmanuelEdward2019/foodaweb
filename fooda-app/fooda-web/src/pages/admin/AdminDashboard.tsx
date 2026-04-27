@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import type { Vendor, Order } from '../../lib/types';
 import { Users, ShoppingBag, Settings, TrendingUp, Clock } from 'lucide-react';
@@ -945,11 +945,17 @@ const AdminDashboard = () => {
                 justifyContent: 'space-between',
                 alignItems: 'center'
             }}>
-                <div>
-                    <h1 style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#333', marginBottom: '4px' }}>
-                        Admin Dashboard
-                    </h1>
-                    <p style={{ color: '#666', fontSize: '14px' }}>Welcome, {user?.email}</p>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                    <Link to="/" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 6, fontSize: '1.3rem', fontWeight: 800, color: '#ff6b35', letterSpacing: '-0.5px', flexShrink: 0 }}>
+                        🍴 Fooda
+                    </Link>
+                    <div style={{ width: 1, height: 28, background: '#e5e7eb' }} />
+                    <div>
+                        <h1 style={{ fontSize: '1.1rem', fontWeight: 'bold', color: '#333', marginBottom: '2px' }}>
+                            Admin Dashboard
+                        </h1>
+                        <p style={{ color: '#666', fontSize: '13px' }}>{user?.email}</p>
+                    </div>
                 </div>
                 <button
                     onClick={handleLogout}

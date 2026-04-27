@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import type { Vendor, MenuItem, MenuCategory, Order } from '../../lib/types';
 import {
@@ -668,9 +668,15 @@ const VendorDashboard = () => {
             )}
 
             <header style={{ background: '#fff', borderBottom: '1px solid #e5e7eb', padding: '16px 40px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div>
-                    <h1 style={{ fontSize: '1.4rem', fontWeight: 'bold', color: '#333' }}>{vendor?.name || 'Vendor Dashboard'}</h1>
-                    <p style={{ color: '#666', fontSize: '13px' }}>{user?.email}</p>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                    <Link to="/" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 6, fontSize: '1.3rem', fontWeight: 800, color: '#ff6b35', letterSpacing: '-0.5px', flexShrink: 0 }}>
+                        🍴 Fooda
+                    </Link>
+                    <div style={{ width: 1, height: 28, background: '#e5e7eb' }} />
+                    <div>
+                        <h1 style={{ fontSize: '1.1rem', fontWeight: 'bold', color: '#333', marginBottom: '2px' }}>{vendor?.name || 'Vendor Dashboard'}</h1>
+                        <p style={{ color: '#666', fontSize: '13px' }}>{user?.email}</p>
+                    </div>
                 </div>
                 <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
                     {unreadCount > 0 && (

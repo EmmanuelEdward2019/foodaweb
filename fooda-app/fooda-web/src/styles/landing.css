@@ -105,6 +105,11 @@ nav.landing-nav ul li a:hover {
     padding: 8px 20px;
 }
 
+/* Hidden on desktop — only visible inside mobile slide-out panel */
+.nav-auth-buttons {
+    display: none;
+}
+
 /* Mobile Menu Toggle */
 .mobile-menu-toggle {
     display: none;
@@ -181,6 +186,21 @@ nav.landing-nav ul li a:hover {
 
     .auth-buttons {
         display: none;
+    }
+
+    /* Auth buttons inside the mobile slide-out panel */
+    .nav-auth-buttons {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        padding: 20px;
+        border-top: 1px solid #f0f0f0;
+        margin-top: 8px;
+    }
+
+    .nav-auth-buttons .btn {
+        text-align: center;
+        display: block;
     }
 
     /* Add overlay when menu is open */

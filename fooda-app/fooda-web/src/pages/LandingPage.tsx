@@ -24,7 +24,9 @@ const LandingPage = () => {
             <header className={`landing-header ${mobileMenuOpen ? 'active' : ''}`}>
                 <div className="container">
                     <div className="logo">
-                        <h2><i className="fas fa-utensils"></i> Fooda</h2>
+                        <Link to="/" style={{ textDecoration: 'none', color: 'inherit' }}>
+                            <h2><i className="fas fa-utensils"></i> Fooda</h2>
+                        </Link>
                     </div>
 
                     {/* Mobile Menu Toggle */}
@@ -48,7 +50,13 @@ const LandingPage = () => {
                             <li><a href="#testimonials" onClick={(e) => { e.preventDefault(); handleNavClick('testimonials'); }}>Testimonials</a></li>
                             <li><a href="#contact" onClick={(e) => { e.preventDefault(); handleNavClick('contact'); }}>Contact</a></li>
                         </ul>
+                        {/* Shown only inside the mobile slide-out panel */}
+                        <div className="nav-auth-buttons">
+                            <Link to="/restaurants" className="btn btn-outline" onClick={() => setMobileMenuOpen(false)}>Order Now</Link>
+                            <Link to="/auth" className="btn btn-primary" onClick={() => setMobileMenuOpen(false)}>Login</Link>
+                        </div>
                     </nav>
+                    {/* Shown only on desktop */}
                     <div className="auth-buttons">
                         <Link to="/restaurants" className="btn btn-outline" style={{ marginRight: 8 }}>Order Now</Link>
                         <Link to="/auth" className="btn btn-primary">Login</Link>
