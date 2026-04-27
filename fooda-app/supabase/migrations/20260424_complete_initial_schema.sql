@@ -268,8 +268,12 @@ CREATE TRIGGER update_platform_settings_timestamp
 -- AUTO-CREATE USER PROFILE ON SIGNUP
 -- =============================================================
 
-CREATE OR REPLACE FUNCTION handle_new_user()
-RETURNS TRIGGER AS $$
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
 BEGIN
   INSERT INTO public.users (id, email, role, full_name, is_active)
   VALUES (
@@ -286,7 +290,7 @@ BEGIN
   ON CONFLICT (id) DO NOTHING;
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$;
 
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created
@@ -297,17 +301,21 @@ CREATE TRIGGER on_auth_user_created
 -- AUTO-CREATE VENDOR PROFILE WHEN USER ROLE IS VENDOR
 -- =============================================================
 
-CREATE OR REPLACE FUNCTION handle_vendor_signup()
-RETURNS TRIGGER AS $$
+CREATE OR REPLACE FUNCTION public.handle_vendor_signup()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
 BEGIN
-  IF NEW.role = 'vendor' AND NOT EXISTS (SELECT 1 FROM vendors WHERE owner_id = NEW.id) THEN
-    INSERT INTO vendors (owner_id, name, email, is_active)
+  IF NEW.role = 'vendor' AND NOT EXISTS (SELECT 1 FROM public.vendors WHERE owner_id = NEW.id) THEN
+    INSERT INTO public.vendors (owner_id, name, email, is_active)
     VALUES (NEW.id, NEW.full_name, NEW.email, true)
     ON CONFLICT DO NOTHING;
   END IF;
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$;
 
 DROP TRIGGER IF EXISTS on_vendor_user_created ON users;
 CREATE TRIGGER on_vendor_user_created

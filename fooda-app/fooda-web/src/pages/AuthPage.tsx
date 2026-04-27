@@ -61,14 +61,6 @@ const AuthPage = () => {
                     throw new Error('An account with this email already exists. Please login instead.');
 
                 if (data.user) {
-                    await supabase.from('users').insert({
-                        id: data.user.id,
-                        email,
-                        role: 'customer',
-                        full_name: fullName,
-                        is_active: true,
-                    });
-
                     if (data.session) {
                         setSuccess('Account created! Redirecting…');
                         setTimeout(() => redirectToDashboard('customer'), 1200);
@@ -93,20 +85,6 @@ const AuthPage = () => {
                     throw new Error('An account with this email already exists. Please login instead.');
 
                 if (data.user) {
-                    await supabase.from('users').insert({
-                        id: data.user.id,
-                        email,
-                        role: 'vendor',
-                        full_name: businessName,
-                        is_active: true,
-                    });
-                    await supabase.from('vendors').insert({
-                        owner_id: data.user.id,
-                        name: businessName,
-                        email,
-                        is_active: true,
-                    });
-
                     if (data.session) {
                         setSuccess('Vendor account created! Redirecting…');
                         setTimeout(() => redirectToDashboard('vendor'), 1200);

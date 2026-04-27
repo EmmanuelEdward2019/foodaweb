@@ -42,3 +42,6 @@ yarn-error.log*
 
 # Coverage
 coverage/
+
+# One-time admin setup utility — contains hardcoded credentials
+create-admin.html
