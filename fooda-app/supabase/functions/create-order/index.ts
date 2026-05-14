@@ -29,13 +29,18 @@ serve(async (req) => {
         }
 
         const body = await req.json();
-        const { vendor_id, delivery_address, items, notes } = body;
+        const { vendor_id, delivery_address, items, notes, payment_method } = body;
 
         if (!vendor_id || !delivery_address || !Array.isArray(items) || items.length === 0) {
             return new Response(JSON.stringify({ error: 'vendor_id, delivery_address, and items are required' }), {
                 status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
             });
         }
+
+        // Allow cash on delivery or default to card. Anything else from the
+        // client is ignored — we never trust a client-supplied 'completed'
+        // payment status.
+        const safePaymentMethod = payment_method === 'cash_on_delivery' ? 'cash_on_delivery' : 'card';
 
         // Validate item structure
         for (const item of items) {
@@ -132,7 +137,8 @@ serve(async (req) => {
                 total_amount: totals.totalAmount,
                 notes: notes || null,
                 status: 'pending',
-                payment_status: 'pending'
+                payment_status: 'pending',
+                payment_method: safePaymentMethod,
             })
             .select()
             .single();

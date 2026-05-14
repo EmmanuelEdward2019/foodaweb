@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 
@@ -176,7 +176,17 @@ const AuthPage = () => {
                     </div>
 
                     <div>
-                        <label style={styles.label}>Password</label>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 6 }}>
+                            <label style={{ ...styles.label, marginBottom: 0 }}>Password</label>
+                            {mode === 'login' && (
+                                <Link
+                                    to="/auth/reset"
+                                    style={{ fontSize: 12, color: '#ff6b35', textDecoration: 'none', fontWeight: 600 }}
+                                >
+                                    Forgot password?
+                                </Link>
+                            )}
+                        </div>
                         <input type="password" value={password} onChange={e => setPassword(e.target.value)} required placeholder="••••••••" minLength={6} style={styles.input} />
                     </div>
 

@@ -1,59 +1,98 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
+import { useCart } from '../../context/CartContext';
 
 type PaymentState = 'checking' | 'success' | 'pending' | 'failed';
+
+// Polling: 12 attempts × 2s = up to 24s while in 'checking', then we drop to
+// 'pending' (still polling slower in the background). The webhook usually
+// arrives within a few seconds, but Paystack signing failures or queue lag
+// have been observed in the wild, so we keep checking.
+const FAST_INTERVAL_MS = 2000;
+const FAST_MAX_ATTEMPTS = 12;
+const SLOW_INTERVAL_MS = 6000;
+const SLOW_MAX_ATTEMPTS = 10;
 
 const PaymentCallback = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const { clearCart } = useCart();
   const [state, setState] = useState<PaymentState>('checking');
   const [orderId, setOrderId] = useState<string | null>(null);
+  const cartCleared = useRef(false);
+  const cancelled = useRef(false);
+  const reference = searchParams.get('reference') ?? searchParams.get('trxref');
+
+  const checkOnce = useCallback(async (): Promise<PaymentState> => {
+    if (!reference) return 'failed';
+    const { data } = await supabase
+      .from('orders')
+      .select('id, payment_status')
+      .eq('payment_reference', reference)
+      .single();
+
+    if (!data) return 'pending';
+    setOrderId(data.id);
+    if (data.payment_status === 'completed') return 'success';
+    if (data.payment_status === 'failed')    return 'failed';
+    return 'pending';
+  }, [reference]);
+
+  const poll = useCallback(async () => {
+    cancelled.current = false;
+    setState('checking');
+
+    // Fast pass
+    for (let i = 0; i < FAST_MAX_ATTEMPTS; i++) {
+      if (cancelled.current) return;
+      const result = await checkOnce();
+      if (result === 'success' || result === 'failed') {
+        setState(result);
+        if (result === 'success' && !cartCleared.current) {
+          clearCart();
+          sessionStorage.removeItem('fooda_pending_order');
+          cartCleared.current = true;
+        }
+        return;
+      }
+      await new Promise(r => setTimeout(r, FAST_INTERVAL_MS));
+    }
+
+    // Slow pass — UI shows 'pending' but we still try
+    setState('pending');
+    for (let i = 0; i < SLOW_MAX_ATTEMPTS; i++) {
+      if (cancelled.current) return;
+      await new Promise(r => setTimeout(r, SLOW_INTERVAL_MS));
+      const result = await checkOnce();
+      if (result === 'success' || result === 'failed') {
+        setState(result);
+        if (result === 'success' && !cartCleared.current) {
+          clearCart();
+          sessionStorage.removeItem('fooda_pending_order');
+          cartCleared.current = true;
+        }
+        return;
+      }
+    }
+  }, [checkOnce, clearCart]);
 
   useEffect(() => {
-    const reference = searchParams.get('reference') ?? searchParams.get('trxref');
     if (!reference) { setState('failed'); return; }
+    poll();
+    return () => { cancelled.current = true; };
+  }, [reference, poll]);
 
-    let attempts = 0;
-    const maxAttempts = 8;
-
-    const check = async () => {
-      attempts++;
-      const { data } = await supabase
-        .from('orders')
-        .select('id, payment_status')
-        .eq('payment_reference', reference)
-        .single();
-
-      if (data) {
-        setOrderId(data.id);
-        if (data.payment_status === 'completed') {
-          setState('success');
-          return;
-        }
-        if (data.payment_status === 'failed') {
-          setState('failed');
-          return;
-        }
-      }
-
-      // Payment webhook may not have fired yet — keep polling
-      if (attempts < maxAttempts) {
-        setTimeout(check, 2000);
-      } else {
-        // After all attempts, still not confirmed — show pending state
-        setState('pending');
-      }
-    };
-
-    check();
-  }, []);
+  const handleRetry = () => {
+    cancelled.current = true;
+    setTimeout(() => poll(), 100);
+  };
 
   const config: Record<PaymentState, { icon: string; title: string; subtitle: string; color: string }> = {
-    checking: { icon: '⏳', title: 'Verifying payment…', subtitle: 'Please wait while we confirm your payment', color: '#8b5cf6' },
+    checking: { icon: '⏳', title: 'Verifying payment…', subtitle: 'Please wait while we confirm your payment with Paystack.', color: '#8b5cf6' },
     success:  { icon: '🎉', title: 'Payment Successful!', subtitle: 'Your order has been placed and the restaurant has been notified.', color: '#16a34a' },
-    pending:  { icon: '⏰', title: 'Payment Processing', subtitle: 'Your payment is being processed. You will receive a confirmation shortly. Check your orders for updates.', color: '#f59e0b' },
-    failed:   { icon: '❌', title: 'Payment Failed', subtitle: 'Your payment could not be verified. No charges were made. Please try again.', color: '#dc2626' },
+    pending:  { icon: '⏰', title: 'Still Processing', subtitle: 'Your payment is taking a little longer than usual. We will keep checking, and you can also re-check now or view your orders.', color: '#f59e0b' },
+    failed:   { icon: '❌', title: 'Payment Failed', subtitle: 'Your payment could not be verified. If you were charged, the amount will be reversed automatically.', color: '#dc2626' },
   };
 
   const { icon, title, subtitle, color } = config[state];
@@ -90,7 +129,24 @@ const PaymentCallback = () => {
           </div>
         )}
 
-        {(state === 'pending' || state === 'failed') && (
+        {state === 'pending' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <button
+              onClick={handleRetry}
+              style={{ padding: '12px 0', background: '#ff6b35', color: '#fff', border: 'none', borderRadius: 12, cursor: 'pointer', fontWeight: 700, fontSize: 15 }}
+            >
+              Check again
+            </button>
+            <Link to={orderId ? `/orders/${orderId}` : '/orders'} style={{ color: '#ff6b35', fontWeight: 600, fontSize: 14, textDecoration: 'none' }}>
+              {orderId ? 'View this order' : 'View My Orders'}
+            </Link>
+            <Link to="/restaurants" style={{ color: '#888', fontSize: 14, textDecoration: 'none' }}>
+              Back to Restaurants
+            </Link>
+          </div>
+        )}
+
+        {state === 'failed' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             <Link to="/orders" style={{ display: 'block', padding: '12px 0', background: '#ff6b35', color: '#fff', textDecoration: 'none', borderRadius: 12, fontWeight: 700, fontSize: 15 }}>
               View My Orders

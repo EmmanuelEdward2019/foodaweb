@@ -8,6 +8,8 @@ import { useAuth } from './context/AuthContext';
 // Lazy-load all page-level components to reduce initial bundle size
 const LandingPage      = lazy(() => import('./pages/LandingPage'));
 const AuthPage         = lazy(() => import('./pages/AuthPage'));
+const ResetPassword    = lazy(() => import('./pages/ResetPassword'));
+const UpdatePassword   = lazy(() => import('./pages/UpdatePassword'));
 const AdminDashboard   = lazy(() => import('./pages/admin/AdminDashboard'));
 const VendorDashboard  = lazy(() => import('./pages/vendor/VendorDashboard'));
 const RestaurantList   = lazy(() => import('./pages/customer/RestaurantList'));
@@ -42,6 +44,8 @@ function App() {
               role === 'vendor' ? <Navigate to="/vendor" /> :
               <AuthPage />
             } />
+            <Route path="/auth/reset" element={<ResetPassword />} />
+            <Route path="/auth/update-password" element={<UpdatePassword />} />
             <Route path="/payment/callback" element={<PaymentCallback />} />
 
             {/* Customer — browsing is public; redirect logged-in admin/vendor to their dashboard */}

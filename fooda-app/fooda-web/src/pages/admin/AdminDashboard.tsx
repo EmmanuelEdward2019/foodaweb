@@ -3,7 +3,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import type { Vendor, Order } from '../../lib/types';
-import { Users, ShoppingBag, Settings, TrendingUp, Clock } from 'lucide-react';
+import { Users, ShoppingBag, Settings, TrendingUp, Clock, LogOut } from 'lucide-react';
 
 type TabType = 'overview' | 'vendors' | 'orders' | 'customers' | 'analytics' | 'delivery' | 'settings';
 
@@ -959,18 +959,25 @@ const AdminDashboard = () => {
                 </div>
                 <button
                     onClick={handleLogout}
+                    title="Sign out"
+                    aria-label="Sign out"
                     style={{
-                        padding: '10px 20px',
-                        backgroundColor: '#ff6b35',
-                        color: 'white',
-                        border: 'none',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 8,
+                        padding: '9px 14px',
+                        backgroundColor: '#fff',
+                        color: '#dc2626',
+                        border: '1px solid #fee2e2',
                         borderRadius: '8px',
                         cursor: 'pointer',
-                        fontWeight: '500',
-                        fontSize: '14px'
+                        fontWeight: 600,
+                        fontSize: '13px',
                     }}
+                    onMouseEnter={e => { const el = e.currentTarget as HTMLButtonElement; el.style.background = '#fef2f2'; el.style.borderColor = '#fecaca'; }}
+                    onMouseLeave={e => { const el = e.currentTarget as HTMLButtonElement; el.style.background = '#fff'; el.style.borderColor = '#fee2e2'; }}
                 >
-                    Logout
+                    <LogOut size={16} /> Sign out
                 </button>
             </header>
 

@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { LogOut, User as UserIcon, Package, Bell } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useCart } from '../../context/CartContext';
 import { useAuth } from '../../context/AuthContext';
@@ -53,10 +54,12 @@ const NAV_STYLE: React.CSSProperties = {
 };
 
 const CustomerNav = () => {
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
   const { itemCount, vendorId } = useCart();
   const navigate = useNavigate();
   const [unreadCount, setUnreadCount] = useState(0);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -67,6 +70,27 @@ const CustomerNav = () => {
       .eq('is_read', false)
       .then(({ count }) => setUnreadCount(count ?? 0));
   }, [user]);
+
+  // Close dropdown on outside click / Escape
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onDown = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setMenuOpen(false); };
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [menuOpen]);
+
+  const handleLogout = async () => {
+    setMenuOpen(false);
+    await signOut();
+    navigate('/');
+  };
 
   return (
     <header style={NAV_STYLE}>
@@ -80,8 +104,8 @@ const CustomerNav = () => {
             <Link to="/orders" style={{ color: '#555', textDecoration: 'none', fontSize: 14, fontWeight: 500 }}>Orders</Link>
 
             {/* Notification bell */}
-            <Link to="/notifications" style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', width: 36, height: 36, borderRadius: '50%', background: '#f8f9fa', textDecoration: 'none', fontSize: 18 }}>
-              🔔
+            <Link to="/notifications" aria-label="Notifications" style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', width: 36, height: 36, borderRadius: '50%', background: '#f8f9fa', textDecoration: 'none', color: '#555' }}>
+              <Bell size={18} />
               {unreadCount > 0 && (
                 <span style={{
                   position: 'absolute', top: 0, right: 0,
@@ -96,16 +120,62 @@ const CustomerNav = () => {
               )}
             </Link>
 
-            {/* Avatar link to profile */}
-            <Link to="/profile" style={{
-              width: 36, height: 36, borderRadius: '50%',
-              background: 'linear-gradient(135deg, #ff6b35, #f7931e)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              color: '#fff', fontWeight: 700, fontSize: 14,
-              textDecoration: 'none', flexShrink: 0,
-            }}>
-              {(user.email?.[0] ?? '?').toUpperCase()}
-            </Link>
+            {/* Avatar + dropdown */}
+            <div ref={menuRef} style={{ position: 'relative' }}>
+              <button
+                onClick={() => setMenuOpen(o => !o)}
+                aria-label="Account menu"
+                aria-expanded={menuOpen}
+                style={{
+                  width: 36, height: 36, borderRadius: '50%',
+                  background: 'linear-gradient(135deg, #ff6b35, #f7931e)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  color: '#fff', fontWeight: 700, fontSize: 14,
+                  border: menuOpen ? '2px solid #ff6b35' : '2px solid transparent',
+                  boxShadow: menuOpen ? '0 0 0 3px rgba(255,107,53,0.18)' : 'none',
+                  cursor: 'pointer', flexShrink: 0, padding: 0,
+                }}
+              >
+                {(user.email?.[0] ?? '?').toUpperCase()}
+              </button>
+              {menuOpen && (
+                <div
+                  role="menu"
+                  style={{
+                    position: 'absolute', top: 'calc(100% + 8px)', right: 0,
+                    minWidth: 220, background: '#fff',
+                    borderRadius: 12, boxShadow: '0 12px 32px rgba(0,0,0,0.14)',
+                    border: '1px solid #f0f0f0', padding: 6, zIndex: 100,
+                  }}
+                >
+                  <div style={{ padding: '8px 12px 10px', borderBottom: '1px solid #f5f5f5', marginBottom: 4 }}>
+                    <p style={{ margin: 0, fontSize: 12, color: '#888' }}>Signed in as</p>
+                    <p style={{ margin: '2px 0 0', fontSize: 13, fontWeight: 600, color: '#1a1a1a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {user.email}
+                    </p>
+                  </div>
+                  <MenuLink to="/profile" icon={<UserIcon size={16} />} label="Profile" onClick={() => setMenuOpen(false)} />
+                  <MenuLink to="/orders" icon={<Package size={16} />} label="My Orders" onClick={() => setMenuOpen(false)} />
+                  <MenuLink to="/notifications" icon={<Bell size={16} />} label="Notifications" onClick={() => setMenuOpen(false)} />
+                  <div style={{ height: 1, background: '#f5f5f5', margin: '6px 4px' }} />
+                  <button
+                    onClick={handleLogout}
+                    role="menuitem"
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 10,
+                      width: '100%', padding: '9px 12px',
+                      background: 'transparent', border: 'none', borderRadius: 8,
+                      color: '#dc2626', fontWeight: 600, fontSize: 14,
+                      cursor: 'pointer', textAlign: 'left',
+                    }}
+                    onMouseEnter={e => (e.currentTarget as HTMLButtonElement).style.background = '#fef2f2'}
+                    onMouseLeave={e => (e.currentTarget as HTMLButtonElement).style.background = 'transparent'}
+                  >
+                    <LogOut size={16} /> Sign out
+                  </button>
+                </div>
+              )}
+            </div>
           </>
         ) : (
           <Link to="/auth" style={{ background: '#ff6b35', color: '#fff', padding: '8px 18px', borderRadius: 8, textDecoration: 'none', fontSize: 14, fontWeight: 600 }}>
@@ -125,6 +195,24 @@ const CustomerNav = () => {
     </header>
   );
 };
+
+const MenuLink = ({ to, icon, label, onClick }: { to: string; icon: React.ReactNode; label: string; onClick: () => void }) => (
+  <Link
+    to={to}
+    onClick={onClick}
+    role="menuitem"
+    style={{
+      display: 'flex', alignItems: 'center', gap: 10,
+      padding: '9px 12px', borderRadius: 8,
+      color: '#1a1a1a', textDecoration: 'none',
+      fontSize: 14, fontWeight: 500,
+    }}
+    onMouseEnter={e => (e.currentTarget as HTMLAnchorElement).style.background = '#f8f9fa'}
+    onMouseLeave={e => (e.currentTarget as HTMLAnchorElement).style.background = 'transparent'}
+  >
+    <span style={{ color: '#666' }}>{icon}</span> {label}
+  </Link>
+);
 
 export { CustomerNav };
 

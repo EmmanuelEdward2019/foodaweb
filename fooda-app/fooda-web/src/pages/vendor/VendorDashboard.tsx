@@ -6,7 +6,7 @@ import type { Vendor, MenuItem, MenuCategory, Order } from '../../lib/types';
 import {
     Plus, Edit2, Trash2, ShoppingBag, Settings, TrendingUp, X,
     Bell, BarChart2, Tag, RefreshCw, CheckCircle, ChevronDown, ChevronUp,
-    Search, Upload, Image as ImageIcon, Zap,
+    Search, Upload, Image as ImageIcon, Zap, LogOut,
 } from 'lucide-react';
 
 type TabType = 'overview' | 'menu' | 'categories' | 'orders' | 'analytics' | 'settings';
@@ -685,7 +685,28 @@ const VendorDashboard = () => {
                             <span style={{ position: 'absolute', top: '-6px', right: '-6px', background: '#ff6b35', color: '#fff', borderRadius: '50%', width: '16px', height: '16px', fontSize: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{unreadCount}</span>
                         </div>
                     )}
-                    <button onClick={() => { signOut(); navigate('/auth'); }} style={{ padding: '8px 18px', background: '#ff6b35', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '500', fontSize: '14px' }}>Logout</button>
+                    <button
+                        onClick={() => { signOut(); navigate('/auth'); }}
+                        title="Sign out"
+                        aria-label="Sign out"
+                        style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: 8,
+                            padding: '9px 14px',
+                            background: '#fff',
+                            color: '#dc2626',
+                            border: '1px solid #fee2e2',
+                            borderRadius: '8px',
+                            cursor: 'pointer',
+                            fontWeight: 600,
+                            fontSize: '13px',
+                        }}
+                        onMouseEnter={e => { const el = e.currentTarget as HTMLButtonElement; el.style.background = '#fef2f2'; el.style.borderColor = '#fecaca'; }}
+                        onMouseLeave={e => { const el = e.currentTarget as HTMLButtonElement; el.style.background = '#fff'; el.style.borderColor = '#fee2e2'; }}
+                    >
+                        <LogOut size={16} /> Sign out
+                    </button>
                 </div>
             </header>
 

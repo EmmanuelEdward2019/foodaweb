@@ -1,5 +1,5 @@
-import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
+import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.89.0";
 
 const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
@@ -75,6 +75,14 @@ serve(async (req: Request) => {
         // Generate unique reference
         const reference = `fooda_${order.order_number}_${Date.now()}`;
 
+        // Resolve the callback URL: prefer what the client passed (already
+        // window.location.origin-aware), then APP_URL env. If neither is
+        // present, we let Paystack use its dashboard-configured callback
+        // rather than constructing a malformed `https:///payment/callback`.
+        const appUrl = Deno.env.get('APP_URL');
+        const resolvedCallback = callback_url
+            || (appUrl ? `${appUrl.replace(/\/$/, '')}/payment/callback` : undefined);
+
         // Initialize Paystack transaction
         const paystackResponse = await fetch('https://api.paystack.co/transaction/initialize', {
             method: 'POST',
@@ -86,7 +94,7 @@ serve(async (req: Request) => {
                 email,
                 amount: Math.round(amount * 100), // Paystack expects amount in kobo/cents
                 reference,
-                callback_url: callback_url || `${Deno.env.get('APP_URL') || ''}/payment/callback`,
+                ...(resolvedCallback ? { callback_url: resolvedCallback } : {}),
                 metadata: {
                     order_id,
                     order_number: order.order_number,

@@ -69,17 +69,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }, []);
 
     const fetchUserRole = async (authUser: User) => {
-        // DB role is always authoritative — never trust metadata for role decisions
-        // (admins can have their role changed in the DB without re-registering)
-        const fallback = (authUser.user_metadata?.role as UserRole) || 'customer';
+        // DB role is the only source of truth. We never trust user_metadata.role,
+        // because a signed-in user can mutate metadata via supabase.auth.updateUser
+        // and would otherwise escalate themselves to admin. On DB failure we fall
+        // back to the lowest privilege role ('customer') rather than what the
+        // client claims to be.
         try {
             const { data, error } = await Promise.race([
                 supabase.from('users').select('role').eq('id', authUser.id).single(),
                 new Promise<any>((_, reject) => setTimeout(() => reject(new Error('timeout')), 4000)),
             ]);
-            setRole((!error && data?.role) ? data.role as UserRole : fallback);
+            setRole((!error && data?.role) ? data.role as UserRole : 'customer');
         } catch {
-            setRole(fallback);
+            setRole('customer');
         } finally {
             setLoading(false);
         }

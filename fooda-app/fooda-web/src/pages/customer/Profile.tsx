@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { LogOut } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
+import { useToast } from '../../context/ToastContext';
 
 interface UserProfile {
   id: string;
@@ -29,6 +31,7 @@ interface Stats {
 const Profile = () => {
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
+  const toast = useToast();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [addresses, setAddresses] = useState<UserAddress[]>([]);
   const [stats, setStats] = useState<Stats>({ totalOrders: 0, totalSpent: 0, reviewsGiven: 0 });
@@ -37,7 +40,6 @@ const Profile = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
   const [showAddAddress, setShowAddAddress] = useState(false);
   const [addrForm, setAddrForm] = useState({ label: 'Home', street: '', area: '', city: '' });
   const [addrSaving, setAddrSaving] = useState(false);
@@ -69,9 +71,8 @@ const Profile = () => {
     if (err) { setError(err.message); setSaving(false); return; }
     setProfile(prev => prev ? { ...prev, ...form } : null);
     setEditing(false);
-    setSuccess('Profile updated!');
+    toast.success('Profile updated');
     setSaving(false);
-    setTimeout(() => setSuccess(null), 3000);
   };
 
   const addAddress = async () => {
@@ -124,13 +125,32 @@ const Profile = () => {
   return (
     <div style={{ minHeight: '100vh', background: '#f8f9fa', fontFamily: 'Inter, system-ui, sans-serif' }}>
       {/* Header */}
-      <header style={{ background: '#fff', borderBottom: '1px solid #f0f0f0', padding: '16px 24px', display: 'flex', alignItems: 'center', gap: 16, position: 'sticky', top: 0, zIndex: 50 }}>
-        <button onClick={() => navigate('/restaurants')} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 20, color: '#555' }}>←</button>
-        <span style={{ fontSize: 18, fontWeight: 700 }}>My Profile</span>
+      <header style={{ background: '#fff', borderBottom: '1px solid #f0f0f0', padding: '16px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, position: 'sticky', top: 0, zIndex: 50 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+          <button onClick={() => navigate('/restaurants')} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 20, color: '#555' }}>←</button>
+          <span style={{ fontSize: 18, fontWeight: 700 }}>My Profile</span>
+        </div>
+        <button
+          onClick={async () => { await signOut(); navigate('/'); }}
+          title="Sign out"
+          aria-label="Sign out"
+          style={{
+            display: 'inline-flex', alignItems: 'center', gap: 6,
+            padding: '7px 12px',
+            background: '#fff',
+            color: '#dc2626',
+            border: '1px solid #fee2e2',
+            borderRadius: 8,
+            cursor: 'pointer',
+            fontWeight: 600,
+            fontSize: 13,
+          }}
+        >
+          <LogOut size={15} /> Sign out
+        </button>
       </header>
 
       <div style={{ maxWidth: 600, margin: '0 auto', padding: '24px 20px' }}>
-        {success && <div style={{ background: '#dcfce7', color: '#16a34a', borderRadius: 10, padding: '10px 14px', marginBottom: 16, fontSize: 14, fontWeight: 600 }}>✅ {success}</div>}
         {error && <div style={{ background: '#fee2e2', color: '#dc2626', borderRadius: 10, padding: '10px 14px', marginBottom: 16, fontSize: 14 }}>{error}</div>}
 
         {/* Stats row */}
