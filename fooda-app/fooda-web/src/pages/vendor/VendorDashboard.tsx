@@ -66,6 +66,9 @@ const VendorDashboard = () => {
     const [unreadCount, setUnreadCount] = useState(0);
     const [stats, setStats] = useState({ todayOrders: 0, pendingOrders: 0, todayRevenue: 0, totalMenuItems: 0 });
     const [loading, setLoading] = useState(true);
+    // True only until the very first data load completes. After that, refetches
+    // do not unmount the dashboard (which would wipe open modals/forms).
+    const initialLoad = useRef(true);
     const [showMenuModal, setShowMenuModal] = useState(false);
     const [showCategoryModal, setShowCategoryModal] = useState(false);
     const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
@@ -85,7 +88,10 @@ const VendorDashboard = () => {
     // Analytics
     const [topItems, setTopItems] = useState<{ name: string; count: number; revenue: number }[]>([]);
 
-    useEffect(() => { if (user) fetchData(); }, [user]);
+    // Depend on user.id, not user object. Token refresh produces a new user
+    // reference for the same id, which would otherwise re-trigger fetchData()
+    // and unmount any open modal (clearing the menu-item form).
+    useEffect(() => { if (user) fetchData(); }, [user?.id]);
 
     const showToast = (msg: string, type: 'success' | 'error' = 'success') => {
         setToast({ msg, type });
@@ -94,7 +100,10 @@ const VendorDashboard = () => {
 
     const fetchData = async () => {
         if (!user) return;
-        setLoading(true);
+        // Only show the full-screen loader on the very first load. Subsequent
+        // refetches (manual refresh, realtime updates) happen silently in the
+        // background so open modals and form state survive.
+        if (initialLoad.current) setLoading(true);
         try {
             const { data: existingUser } = await supabase.from('users').select('id').eq('id', user.id).maybeSingle();
             if (!existingUser) {
@@ -160,6 +169,7 @@ const VendorDashboard = () => {
             showToast(err.message, 'error');
         } finally {
             setLoading(false);
+            initialLoad.current = false;
         }
     };
 
@@ -674,8 +684,13 @@ const VendorDashboard = () => {
                     </Link>
                     <div style={{ width: 1, height: 28, background: '#e5e7eb' }} />
                     <div>
-                        <h1 style={{ fontSize: '1.1rem', fontWeight: 'bold', color: '#333', marginBottom: '2px' }}>{vendor?.name || 'Vendor Dashboard'}</h1>
-                        <p style={{ color: '#666', fontSize: '13px' }}>{user?.email}</p>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <h1 style={{ fontSize: '1.1rem', fontWeight: 'bold', color: '#333', marginBottom: 0 }}>{vendor?.name || 'Vendor Dashboard'}</h1>
+                            <span style={{ background: '#fff7ed', color: '#c2410c', fontSize: 10, fontWeight: 700, letterSpacing: '0.5px', padding: '2px 8px', borderRadius: 10, textTransform: 'uppercase' }}>
+                                Vendor
+                            </span>
+                        </div>
+                        <p style={{ color: '#666', fontSize: '13px', marginTop: 2 }}>{user?.email}</p>
                     </div>
                 </div>
                 <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>

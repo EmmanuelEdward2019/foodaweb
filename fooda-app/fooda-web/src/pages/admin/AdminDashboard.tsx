@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
@@ -21,6 +21,8 @@ const AdminDashboard = () => {
         pendingOrders: 0
     });
     const [loading, setLoading] = useState(true);
+    // Only show full-screen loader on the very first load.
+    const initialLoad = useRef(true);
     const [showVendorModal, setShowVendorModal] = useState(false);
     const [editingVendor, setEditingVendor] = useState<Vendor | null>(null);
     const [settings, setSettings] = useState<any>({});
@@ -42,9 +44,12 @@ const AdminDashboard = () => {
         setConfirmDialog({ message, onConfirm });
     };
 
+    // Only initial fetch — token-refresh remounts are guarded against in
+    // AuthContext (we never propagate a new user reference for the same id),
+    // but keeping this effect with an empty dep array adds belt-and-suspenders.
     useEffect(() => {
         fetchData();
-    }, []);
+    }, [user?.id]);
 
     useEffect(() => {
         if (activeTab === 'customers') fetchCustomers();
@@ -54,7 +59,7 @@ const AdminDashboard = () => {
 
 
     const fetchData = async () => {
-        setLoading(true);
+        if (initialLoad.current) setLoading(true);
         try {
             // Fetch all data in parallel for better performance
             const [vendorsResult, ordersResult, settingsResult] = await Promise.all([
@@ -108,6 +113,7 @@ const AdminDashboard = () => {
             console.error('Error fetching data:', error);
         } finally {
             setLoading(false);
+            initialLoad.current = false;
         }
     };
 
@@ -951,10 +957,15 @@ const AdminDashboard = () => {
                     </Link>
                     <div style={{ width: 1, height: 28, background: '#e5e7eb' }} />
                     <div>
-                        <h1 style={{ fontSize: '1.1rem', fontWeight: 'bold', color: '#333', marginBottom: '2px' }}>
-                            Admin Dashboard
-                        </h1>
-                        <p style={{ color: '#666', fontSize: '13px' }}>{user?.email}</p>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <h1 style={{ fontSize: '1.1rem', fontWeight: 'bold', color: '#333', marginBottom: 0 }}>
+                                Admin Dashboard
+                            </h1>
+                            <span style={{ background: '#fef2f2', color: '#dc2626', fontSize: 10, fontWeight: 700, letterSpacing: '0.5px', padding: '2px 8px', borderRadius: 10, textTransform: 'uppercase' }}>
+                                Admin
+                            </span>
+                        </div>
+                        <p style={{ color: '#666', fontSize: '13px', marginTop: 2 }}>{user?.email}</p>
                     </div>
                 </div>
                 <button

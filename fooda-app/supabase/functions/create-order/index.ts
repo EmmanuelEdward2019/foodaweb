@@ -1,5 +1,5 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.89.0";
 import { corsHeaders, generateOrderNumber, calculateOrderTotals } from "../_shared/utils.ts";
 
 serve(async (req) => {
@@ -39,8 +39,9 @@ serve(async (req) => {
 
         // Allow cash on delivery or default to card. Anything else from the
         // client is ignored — we never trust a client-supplied 'completed'
-        // payment status.
-        const safePaymentMethod = payment_method === 'cash_on_delivery' ? 'cash_on_delivery' : 'card';
+        // payment status. Values must match the orders.payment_method CHECK
+        // constraint: ('cash','card','paypal','wallet').
+        const safePaymentMethod = payment_method === 'cash_on_delivery' ? 'cash' : 'card';
 
         // Validate item structure
         for (const item of items) {
@@ -145,7 +146,13 @@ serve(async (req) => {
 
         if (orderError) {
             console.error('Order insert error:', orderError);
-            return new Response(JSON.stringify({ error: orderError.message }), {
+            return new Response(JSON.stringify({
+                error: orderError.message,
+                where: 'orders.insert',
+                code: orderError.code,
+                details: orderError.details,
+                hint: orderError.hint,
+            }), {
                 status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
             });
         }
@@ -167,21 +174,34 @@ serve(async (req) => {
         if (itemsInsertError) {
             // Rollback order
             await supabaseAdmin.from('orders').delete().eq('id', order.id);
-            return new Response(JSON.stringify({ error: itemsInsertError.message }), {
+            return new Response(JSON.stringify({
+                error: itemsInsertError.message,
+                where: 'order_items.insert',
+                code: itemsInsertError.code,
+                details: itemsInsertError.details,
+                hint: itemsInsertError.hint,
+            }), {
                 status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
             });
         }
 
-        // Notify vendor of new order
-        await supabaseAdmin.from('notifications').insert({
-            user_id: null,
-            vendor_id,
-            order_id: order.id,
-            type: 'order_created',
-            title: 'New Order',
-            message: `New order #${order_number} received. Total: ₦${totals.totalAmount.toLocaleString()}`,
-            is_read: false
-        }).catch((e: any) => console.warn('Notification insert failed:', e.message));
+        // Notify vendor of new order. Failure here must not block the order
+        // (the order itself is already committed). In supabase-js v2.89+ the
+        // un-awaited builder no longer exposes .catch(), so we use try/catch.
+        try {
+            const { error: notifyError } = await supabaseAdmin.from('notifications').insert({
+                user_id: null,
+                vendor_id,
+                order_id: order.id,
+                type: 'order_created',
+                title: 'New Order',
+                message: `New order #${order_number} received. Total: ₦${totals.totalAmount.toLocaleString()}`,
+                is_read: false,
+            });
+            if (notifyError) console.warn('Notification insert failed:', notifyError.message);
+        } catch (e) {
+            console.warn('Notification insert threw:', (e as Error).message);
+        }
 
         return new Response(JSON.stringify({ order }), {
             status: 201, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -189,7 +209,10 @@ serve(async (req) => {
 
     } catch (error) {
         console.error('create-order error:', error);
-        return new Response(JSON.stringify({ error: error.message }), {
+        return new Response(JSON.stringify({
+            error: (error as Error).message,
+            stack: (error as Error).stack?.split('\n').slice(0, 5).join('\n'),
+        }), {
             status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         });
     }

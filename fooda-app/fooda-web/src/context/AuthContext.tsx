@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import type { Session, User } from '@supabase/supabase-js';
 
@@ -29,19 +29,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const [session, setSession] = useState<Session | null>(null);
     const [role, setRole] = useState<UserRole>(null);
     const [loading, setLoading] = useState(true);
+    // Track the id of the user we last loaded so token refreshes (which arrive
+    // as a NEW session object but the same user) don't cascade `user` reference
+    // changes downstream — that's what was unmounting open forms on tab focus.
+    const lastUserIdRef = useRef<string | null>(null);
 
     useEffect(() => {
         // Add timeout to prevent infinite loading
         const timeout = setTimeout(() => {
-            if (loading) setLoading(false);
+            setLoading(prev => prev ? false : prev);
         }, 3000);
 
         // Get initial session
         supabase.auth.getSession().then(({ data: { session } }) => {
             setSession(session);
-            setUser(session?.user ?? null);
-            if (session?.user) {
-                fetchUserRole(session.user);
+            const u = session?.user ?? null;
+            setUser(u);
+            lastUserIdRef.current = u?.id ?? null;
+            if (u) {
+                fetchUserRole(u);
             } else {
                 setLoading(false);
             }
@@ -49,13 +55,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setLoading(false);
         });
 
-        // Listen for auth changes
-        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-            setSession(session);
-            setUser(session?.user ?? null);
+        // Listen for auth changes. We deliberately filter out TOKEN_REFRESHED
+        // events where only the access token has rotated — propagating a new
+        // `user` reference for the same id would cause every dashboard with
+        // `useEffect(..., [user])` to refetch and remount, wiping form state.
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, nextSession) => {
+            const nextUser = nextSession?.user ?? null;
+            const nextId = nextUser?.id ?? null;
+            const prevId = lastUserIdRef.current;
 
-            if (session?.user) {
-                await fetchUserRole(session.user);
+            // Session always updates (token may have changed and other places need it)
+            setSession(nextSession);
+
+            if (event === 'TOKEN_REFRESHED' && nextId && nextId === prevId) {
+                // Same user, just a refreshed token. Don't touch user state or refetch role.
+                return;
+            }
+
+            // Identity actually changed (sign-in, sign-out, or different user)
+            setUser(nextUser);
+            lastUserIdRef.current = nextId;
+
+            if (nextUser) {
+                await fetchUserRole(nextUser);
             } else {
                 setRole(null);
                 setLoading(false);
@@ -98,6 +120,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setRole(null);
         setUser(null);
         setSession(null);
+        lastUserIdRef.current = null;
     };
 
     return (

@@ -94,9 +94,16 @@ const CustomerNav = () => {
 
   return (
     <header style={NAV_STYLE}>
-      <Link to="/restaurants" style={{ fontSize: 24, fontWeight: 800, color: '#ff6b35', textDecoration: 'none', letterSpacing: '-0.5px' }}>
-        Fooda
-      </Link>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <Link to="/restaurants" style={{ fontSize: 24, fontWeight: 800, color: '#ff6b35', textDecoration: 'none', letterSpacing: '-0.5px' }}>
+          Fooda
+        </Link>
+        {user && (
+          <span style={{ background: '#eff6ff', color: '#1d4ed8', fontSize: 10, fontWeight: 700, letterSpacing: '0.5px', padding: '2px 8px', borderRadius: 10, textTransform: 'uppercase' }}>
+            Customer
+          </span>
+        )}
+      </div>
 
       <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
         {user ? (
