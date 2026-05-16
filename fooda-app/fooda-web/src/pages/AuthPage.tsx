@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 
@@ -8,6 +8,11 @@ type AuthMode = 'login' | 'register_customer' | 'register_vendor';
 const AuthPage = () => {
     const navigate = useNavigate();
     const { user, role, loading: authLoading } = useAuth();
+    const [searchParams] = useSearchParams();
+    // ?next=/some/path — used so a user who hits a protected page (most often
+    // /restaurants/{id}/checkout) returns there after sign-in instead of being
+    // dumped on /restaurants and losing their cart context.
+    const nextPath = searchParams.get('next');
 
     const [mode, setMode] = useState<AuthMode>('login');
     const [email, setEmail] = useState('');
@@ -24,11 +29,21 @@ const AuthPage = () => {
         }
     }, [user, role, authLoading]);
 
+    // Safety: only honour ?next= for in-app paths (must start with a single '/')
+    // to avoid open-redirect to external sites.
+    const safeNext = nextPath && /^\/(?!\/)/.test(nextPath) ? nextPath : null;
+
     const redirectToDashboard = (userRole: string) => {
+        // Customers/users coming from a protected page (e.g. checkout) should
+        // return there. Admins and vendors always go to their own dashboard.
+        if (safeNext && (userRole === 'customer' || userRole === 'user')) {
+            navigate(safeNext, { replace: true });
+            return;
+        }
         switch (userRole) {
             case 'admin': navigate('/admin', { replace: true }); break;
             case 'vendor': navigate('/vendor', { replace: true }); break;
-            default: navigate('/restaurants', { replace: true });
+            default: navigate(safeNext ?? '/restaurants', { replace: true });
         }
     };
 

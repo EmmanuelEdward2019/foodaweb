@@ -1,5 +1,282 @@
-import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useState, useEffect, useRef } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { ChevronLeft, ChevronRight, ShoppingCart, Plus, Check } from 'lucide-react';
+import { supabase } from '../lib/supabase';
+import { useCart } from '../context/CartContext';
+import { useToast } from '../context/ToastContext';
+
+interface FeaturedMeal {
+    id: string;
+    name: string;
+    description: string | null;
+    price: number;
+    image_url: string | null;
+    vendor_id: string;
+    vendor_name: string;
+}
+
+const FeaturedMealsCarousel = () => {
+    const navigate = useNavigate();
+    const { addItem, items, vendorId } = useCart();
+    const toast = useToast();
+    const [meals, setMeals] = useState<FeaturedMeal[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [recentlyAdded, setRecentlyAdded] = useState<Set<string>>(new Set());
+    const scrollerRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        supabase
+            .from('menu_items')
+            .select('id, name, description, price, image_url, vendor_id, vendors!menu_items_vendor_id_fkey(id, name, is_active)')
+            .eq('is_available', true)
+            .limit(16)
+            .then(({ data }) => {
+                const list = (data ?? [])
+                    .filter((m: any) => {
+                        const v = Array.isArray(m.vendors) ? m.vendors[0] : m.vendors;
+                        return v?.is_active;
+                    })
+                    .map((m: any) => {
+                        const v = Array.isArray(m.vendors) ? m.vendors[0] : m.vendors;
+                        return {
+                            id: m.id,
+                            name: m.name,
+                            description: m.description,
+                            price: Number(m.price),
+                            image_url: m.image_url,
+                            vendor_id: m.vendor_id,
+                            vendor_name: v?.name ?? 'Restaurant',
+                        };
+                    });
+                setMeals(list);
+                setLoading(false);
+            });
+    }, []);
+
+    const scrollBy = (dir: 1 | -1) => {
+        const el = scrollerRef.current;
+        if (!el) return;
+        el.scrollBy({ left: dir * Math.max(280, el.clientWidth * 0.7), behavior: 'smooth' });
+    };
+
+    const handleAdd = (meal: FeaturedMeal) => {
+        // Cart only supports one vendor at a time; switching vendors replaces it.
+        if (vendorId && vendorId !== meal.vendor_id && items.length > 0) {
+            const ok = window.confirm(
+                `Your cart has items from another restaurant. Replace it with ${meal.vendor_name}'s items?`,
+            );
+            if (!ok) return;
+        }
+        addItem(meal.vendor_id, meal.vendor_name, {
+            menuItemId: meal.id,
+            name: meal.name,
+            price: meal.price,
+            imageUrl: meal.image_url ?? undefined,
+        }, 1);
+        toast.success(`Added ${meal.name} to cart`);
+        setRecentlyAdded(prev => new Set(prev).add(meal.id));
+        setTimeout(() => {
+            setRecentlyAdded(prev => {
+                const next = new Set(prev);
+                next.delete(meal.id);
+                return next;
+            });
+        }, 1800);
+    };
+
+    const cartCount = items.reduce((s, i) => s + i.quantity, 0);
+
+    if (loading) {
+        return (
+            <section style={{ padding: '60px 24px', background: '#fafafa' }}>
+                <div style={{ maxWidth: 1200, margin: '0 auto' }}>
+                    <h2 style={{ fontSize: 28, fontWeight: 800, color: '#1a1a1a', marginBottom: 8 }}>Featured Meals</h2>
+                    <p style={{ color: '#666', marginBottom: 24 }}>Loading delicious picks…</p>
+                </div>
+            </section>
+        );
+    }
+
+    if (meals.length === 0) return null;
+
+    return (
+        <section style={{ padding: '60px 0 30px', background: '#fafafa', position: 'relative' }}>
+            <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 24px' }}>
+                <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16, marginBottom: 24 }}>
+                    <div>
+                        <h2 style={{ fontSize: 30, fontWeight: 800, color: '#1a1a1a', margin: 0, letterSpacing: '-0.5px' }}>Featured Meals</h2>
+                        <p style={{ color: '#666', margin: '6px 0 0', fontSize: 15 }}>Add to cart now — sign up when you're ready to check out.</p>
+                    </div>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                        <button
+                            onClick={() => scrollBy(-1)}
+                            aria-label="Scroll left"
+                            style={carouselArrowStyle}
+                        >
+                            <ChevronLeft size={20} />
+                        </button>
+                        <button
+                            onClick={() => scrollBy(1)}
+                            aria-label="Scroll right"
+                            style={carouselArrowStyle}
+                        >
+                            <ChevronRight size={20} />
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div
+                ref={scrollerRef}
+                style={{
+                    display: 'flex', gap: 18,
+                    overflowX: 'auto', overflowY: 'hidden',
+                    scrollSnapType: 'x mandatory',
+                    padding: '4px 24px 24px',
+                    scrollbarWidth: 'none',
+                }}
+                className="fooda-hide-scrollbar"
+            >
+                {meals.map(meal => {
+                    const just = recentlyAdded.has(meal.id);
+                    return (
+                        <article
+                            key={meal.id}
+                            style={{
+                                flex: '0 0 270px',
+                                background: '#fff',
+                                borderRadius: 18,
+                                overflow: 'hidden',
+                                boxShadow: '0 2px 14px rgba(0,0,0,0.07)',
+                                scrollSnapAlign: 'start',
+                                display: 'flex', flexDirection: 'column',
+                            }}
+                        >
+                            <div
+                                style={{
+                                    height: 170,
+                                    background: meal.image_url
+                                        ? `url(${meal.image_url}) center/cover`
+                                        : 'linear-gradient(135deg, #ff6b35, #f7931e)',
+                                    position: 'relative',
+                                    cursor: 'pointer',
+                                }}
+                                onClick={() => navigate(`/restaurants/${meal.vendor_id}`)}
+                            >
+                                <span style={{
+                                    position: 'absolute', bottom: 10, left: 10,
+                                    background: 'rgba(0,0,0,0.55)', color: '#fff',
+                                    padding: '4px 10px', borderRadius: 14,
+                                    fontSize: 11, fontWeight: 600,
+                                }}>
+                                    {meal.vendor_name}
+                                </span>
+                            </div>
+                            <div style={{ padding: '14px 16px 16px', display: 'flex', flexDirection: 'column', flex: 1 }}>
+                                <h3 style={{ margin: '0 0 4px', fontSize: 16, fontWeight: 700, color: '#1a1a1a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                    {meal.name}
+                                </h3>
+                                {meal.description && (
+                                    <p style={{ margin: '0 0 12px', fontSize: 13, color: '#777', lineHeight: 1.4, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' as any, overflow: 'hidden' }}>
+                                        {meal.description}
+                                    </p>
+                                )}
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 'auto', gap: 10 }}>
+                                    <span style={{ fontSize: 18, fontWeight: 800, color: '#ff6b35' }}>
+                                        ₦{meal.price.toLocaleString()}
+                                    </span>
+                                    <button
+                                        onClick={() => handleAdd(meal)}
+                                        disabled={just}
+                                        style={{
+                                            display: 'inline-flex', alignItems: 'center', gap: 6,
+                                            background: just ? '#16a34a' : '#ff6b35', color: '#fff',
+                                            border: 'none', borderRadius: 10,
+                                            padding: '8px 14px', cursor: just ? 'default' : 'pointer',
+                                            fontSize: 13, fontWeight: 700,
+                                            transition: 'background 0.15s',
+                                        }}
+                                    >
+                                        {just ? <><Check size={14} /> Added</> : <><Plus size={14} /> Add</>}
+                                    </button>
+                                </div>
+                            </div>
+                        </article>
+                    );
+                })}
+                {/* Trailing CTA card */}
+                <article
+                    style={{
+                        flex: '0 0 220px',
+                        background: 'linear-gradient(135deg, #ff6b35, #f7931e)',
+                        color: '#fff',
+                        borderRadius: 18,
+                        padding: 22,
+                        display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
+                        scrollSnapAlign: 'start',
+                    }}
+                >
+                    <h3 style={{ margin: 0, fontSize: 19, fontWeight: 800, lineHeight: 1.25 }}>
+                        Hungry for more?
+                    </h3>
+                    <p style={{ margin: '8px 0 16px', fontSize: 13, opacity: 0.9, lineHeight: 1.5 }}>
+                        Browse every restaurant on Fooda and discover your new favourite.
+                    </p>
+                    <Link
+                        to="/restaurants"
+                        style={{
+                            display: 'inline-block', textAlign: 'center',
+                            background: '#fff', color: '#ff6b35',
+                            borderRadius: 10, padding: '10px 14px',
+                            textDecoration: 'none', fontWeight: 700, fontSize: 14,
+                        }}
+                    >
+                        Explore →
+                    </Link>
+                </article>
+            </div>
+
+            {cartCount > 0 && vendorId && (
+                <div style={{
+                    position: 'fixed', bottom: 20, right: 20, zIndex: 60,
+                    background: '#1a1a1a', color: '#fff',
+                    borderRadius: 14, padding: '12px 18px',
+                    display: 'flex', alignItems: 'center', gap: 12,
+                    boxShadow: '0 10px 30px rgba(0,0,0,0.25)',
+                }}>
+                    <ShoppingCart size={18} />
+                    <span style={{ fontSize: 14, fontWeight: 600 }}>{cartCount} item{cartCount !== 1 ? 's' : ''} in cart</span>
+                    <button
+                        onClick={() => navigate(`/restaurants/${vendorId}/checkout`)}
+                        style={{
+                            background: '#ff6b35', color: '#fff',
+                            border: 'none', borderRadius: 8,
+                            padding: '7px 14px', cursor: 'pointer',
+                            fontSize: 13, fontWeight: 700,
+                        }}
+                    >
+                        Checkout →
+                    </button>
+                </div>
+            )}
+
+            <style>{`
+                .fooda-hide-scrollbar::-webkit-scrollbar { display: none; }
+            `}</style>
+        </section>
+    );
+};
+
+const carouselArrowStyle: React.CSSProperties = {
+    width: 40, height: 40,
+    borderRadius: '50%',
+    background: '#fff',
+    border: '1px solid #e5e7eb',
+    cursor: 'pointer',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    color: '#555',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+};
 
 const LandingPage = () => {
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -81,6 +358,8 @@ const LandingPage = () => {
                     </div>
                 </div>
             </section>
+
+            <FeaturedMealsCarousel />
 
             {/* Features Section */}
             <section id="features" className="features">

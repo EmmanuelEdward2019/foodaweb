@@ -26,16 +26,32 @@ const PaymentCallback = () => {
 
   const checkOnce = useCallback(async (): Promise<PaymentState> => {
     if (!reference) return 'failed';
+    // 1) Cheap read first — if the webhook already updated the order we are done.
     const { data } = await supabase
       .from('orders')
       .select('id, payment_status')
       .eq('payment_reference', reference)
       .single();
 
-    if (!data) return 'pending';
-    setOrderId(data.id);
-    if (data.payment_status === 'completed') return 'success';
-    if (data.payment_status === 'failed')    return 'failed';
+    if (data) {
+      setOrderId(data.id);
+      if (data.payment_status === 'completed') return 'success';
+      if (data.payment_status === 'failed')    return 'failed';
+    }
+
+    // 2) Webhook hasn't landed yet (or isn't configured). Ask Paystack directly
+    //    via our verify-payment function and let it settle the order.
+    try {
+      const { data: verifyData } = await supabase.functions.invoke('verify-payment', {
+        body: { reference },
+      });
+      if (verifyData?.order_id) setOrderId(verifyData.order_id);
+      if (verifyData?.status === 'completed') return 'success';
+      if (verifyData?.status === 'failed')    return 'failed';
+    } catch {
+      /* swallow — we'll poll again */
+    }
+
     return 'pending';
   }, [reference]);
 

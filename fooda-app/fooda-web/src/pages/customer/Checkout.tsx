@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, useNavigate, Link, useLocation } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { useCart } from '../../context/CartContext';
 import { useAuth } from '../../context/AuthContext';
@@ -26,6 +26,7 @@ const isValidPhone = (raw: string) => PHONE_REGEX.test(raw) && raw.replace(/\D/g
 const Checkout = () => {
   const { id: vendorId } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const { user } = useAuth();
   const { items, subtotal, itemCount, vendorName, clearCart } = useCart();
   const toast = useToast();
@@ -65,7 +66,13 @@ const Checkout = () => {
 
   const handlePlaceOrder = async () => {
     if (submitting.current) return;
-    if (!user) { navigate('/auth'); return; }
+    if (!user) {
+      // Send them through auth but bring them back to the same checkout so
+      // their cart and address fields aren't lost.
+      const here = location.pathname + location.search;
+      navigate(`/auth?next=${encodeURIComponent(here)}`);
+      return;
+    }
     if (!address.street || !address.city || !address.phone) {
       setError('Please fill in your street address, city, and phone number.');
       return;
@@ -248,7 +255,12 @@ const Checkout = () => {
                 <p style={{ margin: '0 0 4px', fontWeight: 600, fontSize: 14 }}>Sign in to continue</p>
                 <p style={{ margin: 0, fontSize: 13, color: '#666' }}>You need an account to place an order and track deliveries.</p>
               </div>
-              <Link to="/auth" style={{ background: '#ff6b35', color: '#fff', textDecoration: 'none', padding: '8px 16px', borderRadius: 8, fontWeight: 600, fontSize: 13, flexShrink: 0 }}>Sign In</Link>
+              <Link
+                to={`/auth?next=${encodeURIComponent(location.pathname + location.search)}`}
+                style={{ background: '#ff6b35', color: '#fff', textDecoration: 'none', padding: '8px 16px', borderRadius: 8, fontWeight: 600, fontSize: 13, flexShrink: 0 }}
+              >
+                Sign In
+              </Link>
             </section>
           )}
         </div>
