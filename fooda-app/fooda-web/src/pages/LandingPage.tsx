@@ -595,7 +595,7 @@ const LandingPage = () => {
                                 <i className="fas fa-phone"></i>
                                 <div>
                                     <h4>Phone Number</h4>
-                                    <p>+1 (555) 123-4567</p>
+                                    <p>+2348062609302</p>
                                 </div>
                             </div>
                             <div className="contact-item">
