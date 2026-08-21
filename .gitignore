@@ -45,3 +45,6 @@ coverage/
 
 # One-time admin setup utility — contains hardcoded credentials
 create-admin.html
+
+# Generated email template previews (regenerate with scripts/preview-emails.ts)
+.email-previews/
