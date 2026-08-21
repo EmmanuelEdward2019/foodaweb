@@ -17,8 +17,23 @@ PAYSTACK_SECRET_KEY=your_paystack_secret_key
 ### 3. Communication Services
 ```
 TWILIO_AUTH_TOKEN=your_twilio_auth_token
-EMAIL_PASSWORD=your_email_password
+RESEND_API_KEY=re_xxxxxxxxxxxxxxxxxxxx
 ```
+
+`RESEND_API_KEY` powers every transactional email (see
+`supabase/functions/_shared/emails/`). Set it, plus the non-secret envelope and
+branding variables, in one go:
+
+```bash
+supabase secrets set RESEND_API_KEY=re_xxxxxxxxxxxxxxxxxxxx
+supabase secrets set RESEND_FROM_EMAIL=orders@fooda.com RESEND_FROM_NAME=Fooda \
+  RESEND_REPLY_TO=support@fooda.com ADMIN_ALERT_EMAILS=admin@fooda.com \
+  EMAIL_BRAND_URL=https://fooda.com EMAIL_SUPPORT_ADDRESS=support@fooda.com
+```
+
+The sending domain must be verified in the Resend dashboard (Domains → Add
+Domain, then add the DKIM/SPF records) before mail will deliver to anyone other
+than your own Resend account address.
 
 ### 4. Social Login Secrets
 ```
